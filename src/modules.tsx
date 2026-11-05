@@ -4,11 +4,16 @@ import type {
   ClipItem,
   FocusState,
   Note,
+  ReminderData,
+  RingAnim,
   ScreenSummary,
   SysStats,
+  Tone,
   WeatherData,
   WeatherPlace,
 } from "./api";
+import { ringNotch } from "./ring";
+import { playTone } from "./sound";
 import { Bar, Icon, Ring, Spark } from "./ui";
 import type { IconName } from "./ui";
 
@@ -95,6 +100,23 @@ export function HomeModule({ onOpen }: { onOpen: (m: ModuleId) => void }) {
 
   return (
     <div className="grid2">
+      <button className="card" onClick={() => onOpen("notes")}>
+        <div className="card-label">
+          <Icon name="notes" size={11} /> Notes
+        </div>
+        {lastNote ? (
+          <>
+            <div className="note-title clamp1">{lastNote.title || "Untitled"}</div>
+            <div className="card-sub clamp1">{plain(lastNote.body) || "Empty"}</div>
+          </>
+        ) : (
+          <div className="empty-sm">No notes yet</div>
+        )}
+        <div className="card-sub faint">
+          {notes?.length ?? 0} note{(notes?.length ?? 0) === 1 ? "" : "s"}
+        </div>
+      </button>
+
       <button className="card" onClick={() => onOpen("screen")}>
         <div className="card-label">
           <Icon name="screen" size={11} /> Screen time
@@ -121,23 +143,6 @@ export function HomeModule({ onOpen }: { onOpen: (m: ModuleId) => void }) {
               />
             </div>
           ))}
-        </div>
-      </button>
-
-      <button className="card" onClick={() => onOpen("notes")}>
-        <div className="card-label">
-          <Icon name="notes" size={11} /> Notes
-        </div>
-        {lastNote ? (
-          <>
-            <div className="note-title clamp1">{lastNote.title || "Untitled"}</div>
-            <div className="card-sub clamp1">{plain(lastNote.body) || "Empty"}</div>
-          </>
-        ) : (
-          <div className="empty-sm">No notes yet</div>
-        )}
-        <div className="card-sub faint">
-          {notes?.length ?? 0} note{(notes?.length ?? 0) === 1 ? "" : "s"}
         </div>
       </button>
 
@@ -184,6 +189,7 @@ const mmss = (n: number) =>
   `${Math.floor(n / 60)}:${String(Math.max(0, n) % 60).padStart(2, "0")}`;
 
 export function FocusModule() {
+  const [tab, setTab] = useState<"timer" | "reminders">("timer");
   const [st, setSt] = useState<FocusState | null>(null);
   const [custom, setCustom] = useState("");
 
@@ -222,56 +228,266 @@ export function FocusModule() {
 
   return (
     <div className="focus">
-      <div className="focus-hero">
-        <Ring value={pct} label={work ? "Work" : "Break"} size={96} />
-        <div className="focus-stack">
-          <div className="card-label">
-            {work ? (running ? "Focusing" : "Ready to focus") : running ? "On a break" : "Break ready"}
-          </div>
-          <div className="hero-lg mono">{mmss(st?.remaining ?? total)}</div>
-          <div className="card-sub faint">
-            {sessions} session{sessions === 1 ? "" : "s"} today
-          </div>
-        </div>
-      </div>
-
-      <div className="focus-actions">
-        <button className="btn-copy focus-btn" onClick={() => act(api.focusToggle())}>
-          {running ? "Pause" : "Start"}
+      <div className="seg focus-tabs">
+        <button
+          className={`seg-btn${tab === "timer" ? " on" : ""}`}
+          onClick={() => setTab("timer")}
+        >
+          Timer
         </button>
-        <button className="btn-ghost" onClick={() => act(api.focusReset())}>
-          Reset
+        <button
+          className={`seg-btn${tab === "reminders" ? " on" : ""}`}
+          onClick={() => setTab("reminders")}
+        >
+          Reminders
         </button>
       </div>
 
-      <div className="focus-row">
-        <div className="seg focus-presets">
-          {PRESETS.map((m) => (
-            <button
-              key={m}
-              className={`seg-btn${st && st.work_secs === m * 60 ? " on" : ""}`}
-              onClick={() => act(api.focusConfig(m, BREAK_MINS))}
-            >
-              {m} min
+      {tab === "timer" ? (
+        <>
+          <div className="focus-hero">
+            <Ring value={pct} label={work ? "Work" : "Break"} size={96} />
+            <div className="focus-stack">
+              <div className="card-label">
+                {work
+                  ? running
+                    ? "Focusing"
+                    : "Ready to focus"
+                  : running
+                    ? "On a break"
+                    : "Break ready"}
+              </div>
+              <div className="hero-lg mono">{mmss(st?.remaining ?? total)}</div>
+              <div className="card-sub faint">
+                {sessions} session{sessions === 1 ? "" : "s"} today
+              </div>
+            </div>
+          </div>
+
+          <div className="focus-actions">
+            <button className="btn-copy focus-btn" onClick={() => act(api.focusToggle())}>
+              {running ? "Pause" : "Start"}
             </button>
-          ))}
+            <button className="btn-ghost" onClick={() => act(api.focusReset())}>
+              Reset
+            </button>
+          </div>
+
+          <div className="focus-row">
+            <div className="seg focus-presets">
+              {PRESETS.map((m) => (
+                <button
+                  key={m}
+                  className={`seg-btn${st && st.work_secs === m * 60 ? " on" : ""}`}
+                  onClick={() => act(api.focusConfig(m, BREAK_MINS))}
+                >
+                  {m} min
+                </button>
+              ))}
+            </div>
+            <div className="focus-custom">
+              <input
+                type="number"
+                min={1}
+                max={180}
+                placeholder="Custom"
+                value={custom}
+                onChange={(e) => setCustom(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyCustom();
+                }}
+              />
+              <button className="seg-btn" onClick={applyCustom} disabled={!custom}>
+                Set
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <RemindersPanel />
+      )}
+    </div>
+  );
+}
+
+const TONE_LABEL: Record<Tone, string> = { chime: "Chime", bell: "Bell", bowl: "Bowl" };
+const ANIM_LABEL: Record<RingAnim, string> = { glow: "Glow", pulse: "Pulse", ripple: "Ripple" };
+
+function RemindersPanel() {
+  const [data, setData] = useState<ReminderData | null>(null);
+  const [text, setText] = useState("");
+  const [time, setTime] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    const run = () =>
+      api
+        .remindersGet()
+        .then((v) => alive && setData(v))
+        .catch(() => {});
+    run();
+    // Two seconds: a fired item flips to done in the list without a reload.
+    const id = window.setInterval(run, 2000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  const add = async () => {
+    const t = text.trim();
+    if (!t || !time) return;
+    const [h, m] = time.split(":").map(Number);
+    const at = new Date();
+    at.setHours(h, m, 0, 0);
+    // A time already gone today means tomorrow, not a reminder in the past.
+    if (at.getTime() <= Date.now()) at.setDate(at.getDate() + 1);
+    setData(await api.remind(t, at.getTime()));
+    setText("");
+    setTime("");
+  };
+
+  const pick = async (tone: Tone, anim: RingAnim) => {
+    if (!data) return;
+    setData(await api.reminderConfig(tone, anim));
+    playTone(tone);
+    ringNotch(anim);
+  };
+
+  const when = (at: number) => {
+    const d = new Date(at);
+    return {
+      day: dayLabel(at),
+      time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+    };
+  };
+
+  const pending = data?.items.filter((r) => !r.done) ?? [];
+  const fired = data?.items.filter((r) => r.done).reverse() ?? [];
+
+  return (
+    <div className="rem">
+      <form
+        className="rem-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void add();
+        }}
+      >
+        <input
+          className="rem-text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Remind me to…"
+          maxLength={200}
+        />
+        <input
+          className="rem-time"
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          required
+        />
+        <button className="btn-copy rem-add" type="submit" disabled={!text.trim() || !time}>
+          <Icon name="plus" size={10} stroke={2.6} />
+          Set
+        </button>
+      </form>
+
+      <div className="rem-opts">
+        <div className="rem-opt">
+          <span className="rem-lbl">Sound</span>
+          <div className="seg rem-chips">
+            {(Object.keys(TONE_LABEL) as Tone[]).map((t) => (
+              <button
+                key={t}
+                className={`seg-btn${data?.tone === t ? " on" : ""}`}
+                onClick={() => void pick(t, data?.anim ?? "glow")}
+                title={`Preview the ${TONE_LABEL[t].toLowerCase()}`}
+              >
+                {TONE_LABEL[t]}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="focus-custom">
-          <input
-            type="number"
-            min={1}
-            max={180}
-            placeholder="Custom"
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") applyCustom();
-            }}
-          />
-          <button className="seg-btn" onClick={applyCustom} disabled={!custom}>
-            Set
-          </button>
+        <div className="rem-opt">
+          <span className="rem-lbl">Notch</span>
+          <div className="seg rem-chips">
+            {(Object.keys(ANIM_LABEL) as RingAnim[]).map((a) => (
+              <button
+                key={a}
+                className={`seg-btn${data?.anim === a ? " on" : ""}`}
+                onClick={() => void pick(data?.tone ?? "chime", a)}
+                title={`Preview the ${ANIM_LABEL[a].toLowerCase()}`}
+              >
+                {ANIM_LABEL[a]}
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
+
+      <div className="rem-list">
+        {!data ? null : pending.length === 0 && fired.length === 0 ? (
+          <div className="rem-empty">
+            <span className="rem-empty-mark">
+              <Icon name="timer" size={16} />
+            </span>
+            <b>Nothing scheduled</b>
+            <span>Anything you want a gentle nudge about.</span>
+          </div>
+        ) : (
+          <>
+            {pending.length > 0 && (
+              <div className="rem-head">
+                Upcoming <span>{pending.length}</span>
+              </div>
+            )}
+            {pending.map((r) => {
+              const w = when(r.at);
+              return (
+                <div className="rem-item" key={r.id}>
+                  <span className="rem-when">
+                    <b>{w.time}</b>
+                    <i>{w.day}</i>
+                  </span>
+                  <span className="rem-what">{r.text}</span>
+                  <button
+                    className="icon-btn rem-del"
+                    onClick={() => void api.reminderDelete(r.id).then(setData)}
+                    title="Delete"
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                </div>
+              );
+            })}
+            {fired.length > 0 && (
+              <div className="rem-head">
+                Done <span>{fired.length}</span>
+              </div>
+            )}
+            {fired.map((r) => {
+              const w = when(r.at);
+              return (
+                <div className="rem-item done" key={r.id}>
+                  <span className="rem-when">
+                    <b>{w.time}</b>
+                    <i>{w.day}</i>
+                  </span>
+                  <span className="rem-what">{r.text}</span>
+                  <button
+                    className="icon-btn rem-del"
+                    onClick={() => void api.reminderDelete(r.id).then(setData)}
+                    title="Delete"
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
     </div>
   );

@@ -533,11 +533,10 @@ pub fn already_running() -> bool {
     // stale ERROR_ALREADY_EXISTS from any earlier call would look like a copy.
     unsafe { SetLastError(WIN32_ERROR(0)) };
     match unsafe { CreateMutexW(None, false, PCWSTR(name.as_ptr())) } {
-        Ok(h) => {
+        Ok(_) => {
             let taken = unsafe { GetLastError() } == ERROR_ALREADY_EXISTS;
-            // Hold the handle for the process lifetime; dropping it would let a
-            // second copy in.
-            std::mem::forget(h);
+            // A HANDLE is a plain Copy wrapper with no destructor, so it stays open
+            // for the process lifetime; dropping it would not release the mutex.
             taken
         }
         Err(_) => false,

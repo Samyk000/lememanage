@@ -9,7 +9,7 @@ Built because Vayli does eighteen things and you use seven of them.
 | Module | What it shows |
 |---|---|
 | **Home** | Screen time today, CPU/RAM/Disk rings, last two clips, latest note |
-| **Focus** | Pomodoro ring, start/pause, reset, 15/25/50 presets or any length you type |
+| **Focus** | Pomodoro ring and reminders, in two tabs |
 | **Weather** | Current conditions, next eight hours, four days, °C/°F, city search |
 | **Notes** | Sidebar of notes, rich-text editor (bold, lists, headings, code), full-panel mode |
 | **Clipboard** | Date-grouped cards, search, pin, read, and select-many delete |
@@ -96,6 +96,23 @@ ring fills as the phase counts down, and a finished phase stops on the next one
 instead of rolling over on its own. The count survives a restart; the tally
 starts again at midnight.
 
+The **Reminders** tab is the other half of Focus. Type what you want nudging
+about, pick a time, and press **Set**; a time already gone today means tomorrow.
+Upcoming items sit above the ones that have fired, each with its day and clock
+time. Delete removes one item.
+
+Two small choices shape how a reminder arrives:
+
+- **Sound** — *Chime*, *Bell* or *Bowl*. Each is a short WebAudio synth with a
+  soft attack and a long tail; picking one plays it.
+- **Notch** — the glow, pulse or ripple that runs on the collapsed notch. With
+  the panel open, the dot beside the title carries the same cue. Picking one
+  previews it.
+
+Both choices and the list live in `reminders.json`. A reminder that came due
+while the app was closed is marked done at launch instead of ringing late. The
+app allows autoplay, so a due reminder can chime without a click.
+
 ## Weather
 
 Pick a city once and the panel fetches a forecast from Open-Meteo, a keyless
@@ -147,6 +164,7 @@ Plain JSON in `%APPDATA%\LemeManage\`:
 - `notes.json` — note bodies are HTML (from the editor)
 - `screentime.json` — per app, per day, in seconds
 - `timers.json` — pomodoro lengths, the running phase, and today's completed sessions
+- `reminders.json` — reminder items plus the chosen sound and notch animation
 - `weather.json` — the saved city and the °C/°F choice
 - `settings.json` — position (`anchor_x`, `anchor_y`, `side`), theme, accent, notch
   and dock style
@@ -154,6 +172,8 @@ Plain JSON in `%APPDATA%\LemeManage\`:
 Writes go to a `.tmp` file and are renamed into place, so a force-kill mid-write
 cannot truncate the real file. A UTF-8 BOM is tolerated on load: an editor that
 adds one would otherwise make the whole file read as empty and get overwritten.
+Saves themselves are serialised, because a second save truncating the shared temp
+file would publish a half-written document the same way.
 
 Only one copy runs at a time — a second launch exits on a named mutex. Two
 instances would each hold their own snapshot of the clipboard, and whichever

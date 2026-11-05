@@ -27,6 +27,7 @@ pub struct AppState {
     screen: Mutex<store::ScreenData>,
     timer: Mutex<store::TimerState>,
     weather: Mutex<store::WeatherData>,
+    reminders: Mutex<store::ReminderData>,
     settings: Mutex<store::Settings>,
     last_clip: Mutex<String>,
     expanded: AtomicBool,
@@ -34,24 +35,31 @@ pub struct AppState {
     icons: Mutex<std::collections::HashMap<String, Option<String>>>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct AppUse {
     name: String,
     secs: u64,
     icon: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct DayUse {
     day: String,
     secs: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct ScreenSummary {
     today_secs: u64,
     apps: Vec<AppUse>,
     days: Vec<DayUse>,
+}
+
+#[derive(Serialize, Clone)]
+struct ReminderDue {
+    texts: Vec<String>,
+    tone: String,
+    anim: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -408,6 +416,49 @@ fn focus_config(state: State<AppState>, work_mins: u32, break_mins: u32) -> stor
 }
 
 #[tauri::command]
+fn reminders_get(state: State<AppState>) -> store::ReminderData {
+    state.reminders.lock().clone()
+}
+
+#[tauri::command(async)]
+fn reminders_add(state: State<AppState>, text: String, at: i64) -> store::ReminderData {
+    let mut data = state.reminders.lock();
+    data.items.push(store::Reminder {
+        id: store::new_id(),
+        text,
+        at,
+        done: false,
+    });
+    data.fix();
+    let snap = data.clone();
+    drop(data);
+    store::save("reminders.json", &snap);
+    snap
+}
+
+#[tauri::command(async)]
+fn reminders_delete(state: State<AppState>, id: String) -> store::ReminderData {
+    let mut data = state.reminders.lock();
+    data.items.retain(|r| r.id != id);
+    let snap = data.clone();
+    drop(data);
+    store::save("reminders.json", &snap);
+    snap
+}
+
+#[tauri::command(async)]
+fn reminders_config(state: State<AppState>, tone: String, anim: String) -> store::ReminderData {
+    let mut data = state.reminders.lock();
+    data.tone = tone;
+    data.anim = anim;
+    data.fix();
+    let snap = data.clone();
+    drop(data);
+    store::save("reminders.json", &snap);
+    snap
+}
+
+#[tauri::command]
 fn weather_get(state: State<AppState>) -> store::WeatherData {
     state.weather.lock().clone()
 }
@@ -652,7 +703,8 @@ fn main() {
     if std::env::var_os("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_none() {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--disable-gpu-compositing",
+            // Autoplay is allowed so a reminder chime can play without a click.
+            "--disable-gpu-compositing --autoplay-policy=no-user-gesture-required",
         );
     }
 
@@ -672,6 +724,19 @@ fn main() {
                 let mut w: store::WeatherData = store::load("weather.json");
                 w.fix();
                 w
+            }),
+            reminders: Mutex::new({
+                let mut r: store::ReminderData = store::load("reminders.json");
+                r.fix();
+                // Startup is silent: a reminder that came due while the app was
+                // closed is marked done instead of ringing all at once.
+                let now = store::now_ms();
+                for it in &mut r.items {
+                    if it.at <= now {
+                        it.done = true;
+                    }
+                }
+                r
             }),
             settings: Mutex::new(store::load_settings()),
             last_clip: Mutex::new(String::new()),
@@ -697,6 +762,10 @@ fn main() {
             focus_config,
             weather_get,
             weather_save,
+            reminders_get,
+            reminders_add,
+            reminders_delete,
+            reminders_config,
             settings_get,
             settings_set,
             set_expanded,
@@ -840,6 +909,35 @@ fn main() {
                         store::save("timers.json", &snap);
                     }
                 }
+            });
+
+            // reminders: a one-second tick. Only items that were pending and are now
+            // due are collected, so a restart never replays old ones.
+            let h4 = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                let st = h4.state::<AppState>();
+                let mut data = st.reminders.lock();
+                let now = store::now_ms();
+                let mut texts = Vec::new();
+                for r in data.items.iter_mut() {
+                    if !r.done && r.at <= now {
+                        r.done = true;
+                        texts.push(r.text.clone());
+                    }
+                }
+                if texts.is_empty() {
+                    continue;
+                }
+                let due = ReminderDue {
+                    texts,
+                    tone: data.tone.clone(),
+                    anim: data.anim.clone(),
+                };
+                let snap = data.clone();
+                drop(data);
+                store::save("reminders.json", &snap);
+                let _ = h4.emit("reminder-due", due);
             });
 
             // tray

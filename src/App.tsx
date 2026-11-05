@@ -2,7 +2,18 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
-import type { Accent, DockStyle, NotchStyle, Placement, Settings, Theme } from "./api";
+import type {
+  Accent,
+  DockStyle,
+  NotchStyle,
+  Placement,
+  RingAnim,
+  Settings,
+  Theme,
+  Tone,
+} from "./api";
+import { ringNotch } from "./ring";
+import { playTone, unlockAudio } from "./sound";
 import {
   ClipboardModule,
   FocusModule,
@@ -76,6 +87,18 @@ export default function App() {
   useEffect(() => {
     api.settingsGet().then(setSt).catch(() => {});
     api.dockSide().then(setPlace).catch(() => {});
+  }, []);
+
+  // Audio has to be unlocked by a gesture the first time; after that the context
+  // stays live and a reminder can play while the window is idle.
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
   }, []);
 
   // Theme/accent/dock live on <html> so plain CSS variables do the work.
@@ -182,6 +205,19 @@ export default function App() {
         setOpen(e.payload.expanded);
       }
     )
+      .then((f) => (un = f))
+      .catch(() => {});
+    return () => un?.();
+  }, []);
+
+  // A reminder rings on the resting notch and in the panel header, so it is
+  // visible whichever state the window is in.
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    listen<{ texts: string[]; tone: Tone; anim: RingAnim }>("reminder-due", (e) => {
+      playTone(e.payload.tone);
+      ringNotch(e.payload.anim);
+    })
       .then((f) => (un = f))
       .catch(() => {});
     return () => un?.();
@@ -404,6 +440,7 @@ export default function App() {
             ) : (
               <span className="notch-pip" />
             )}
+            <span className="notch-ring" aria-hidden />
           </div>
         </div>
       )}
@@ -449,7 +486,10 @@ function SettingsPanel({
         </div>
 
         <div className="set-row wide">
-          <span>Theme</span>
+          <div className="set-line">
+            <span>Theme</span>
+            <span className="set-val">{THEMES.find((t) => t.id === st?.theme)?.label}</span>
+          </div>
           <div className="tchips">
             {THEMES.map((t) => (
               <button
@@ -467,7 +507,10 @@ function SettingsPanel({
         </div>
 
         <div className="set-row wide">
-          <span>Accent</span>
+          <div className="set-line">
+            <span>Accent</span>
+            <span className="set-val">{ACCENTS.find((a) => a.id === st?.accent)?.label}</span>
+          </div>
           <div className="swatches">
             {ACCENTS.map((a) => (
               <button
@@ -485,7 +528,10 @@ function SettingsPanel({
         </div>
 
         <div className="set-row wide">
-          <span>Notch</span>
+          <div className="set-line">
+            <span>Notch</span>
+            <span className="set-val">{NOTCHES.find((n) => n.id === st?.notch)?.label}</span>
+          </div>
           <div className="nchips">
             {NOTCHES.map((n) => (
               <button
@@ -544,6 +590,8 @@ function SettingsPanel({
           System
         </div>
 
+        <div className="set-sub">Behaviour</div>
+
         <div className="set-row">
           <span>Start with Windows</span>
           <button
@@ -560,6 +608,8 @@ function SettingsPanel({
           <kbd>{st?.hotkey ?? "Ctrl+Shift+Space"}</kbd>
         </div>
 
+        <div className="set-sub">Placement</div>
+
         <div className="set-row">
           <span>Position</span>
           <button
@@ -572,6 +622,8 @@ function SettingsPanel({
             Reset
           </button>
         </div>
+
+        <div className="set-sub">Data</div>
 
         <div className="set-row">
           <span>Clipboard history</span>
@@ -587,9 +639,9 @@ function SettingsPanel({
         </div>
 
         <div className="set-foot">
-          <span className="faint clamp1">{note || "Drag the top bar to move LemeManage"}</span>
+          <span className="faint clamp1">{note || "Drag the top bar to move"}</span>
           <div className="set-actions">
-            <button className="btn-ghost" onClick={onDone}>
+            <button className="btn-ghost set-done" onClick={onDone}>
               Done
             </button>
             <button className="btn-danger" onClick={() => void api.quit()}>

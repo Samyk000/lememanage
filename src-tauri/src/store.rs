@@ -1,3 +1,4 @@
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
@@ -102,6 +103,54 @@ pub fn load_settings() -> Settings {
 pub struct ScreenData {
     /// "YYYY-MM-DD" -> exe name -> seconds
     pub days: BTreeMap<String, BTreeMap<String, u64>>,
+}
+
+/// A one-shot reminder: the text to show, when it is due, and whether it fired.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Reminder {
+    pub id: String,
+    pub text: String,
+    /// Local epoch milliseconds.
+    pub at: i64,
+    pub done: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(default)]
+pub struct ReminderData {
+    pub items: Vec<Reminder>,
+    /// Which chime to play and which notch animation to run when one fires.
+    pub tone: String,
+    pub anim: String,
+}
+
+impl Default for ReminderData {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            tone: "chime".into(),
+            anim: "glow".into(),
+        }
+    }
+}
+
+impl ReminderData {
+    pub fn fix(&mut self) {
+        self.items
+            .retain(|r| !r.text.trim().is_empty() && r.at > 0);
+        for r in &mut self.items {
+            r.text = r.text.trim().chars().take(200).collect();
+        }
+        // Soonest first, so the list reads as a schedule.
+        self.items.sort_by_key(|r| r.at);
+        self.items.truncate(50);
+        if !matches!(self.tone.as_str(), "chime" | "bell" | "bowl") {
+            self.tone = "chime".into();
+        }
+        if !matches!(self.anim.as_str(), "glow" | "pulse" | "ripple") {
+            self.anim = "glow".into();
+        }
+    }
 }
 
 /// One saved place, so the weather panel does not ask for a city every launch.
@@ -235,6 +284,14 @@ pub fn save<T: Serialize>(name: &str, v: &T) {
         let dir = data_dir();
         // Write-then-rename: a force-kill mid-write must not truncate the real
         // file, or the next load silently resets to empty.
+        //
+        // The tmp name is shared, so two saves of the same file must not overlap:
+        // one `fs::write` truncating the other's half-written tmp and renaming it
+        // into place would publish a torn document, which loads as empty and then
+        // gets saved over. Separate commands, the clipboard watcher and the tick
+        // threads all save, so this is reachable with a fast double click.
+        static SAVE_LOCK: Mutex<()> = Mutex::new(());
+        let _guard = SAVE_LOCK.lock();
         let tmp = dir.join(format!("{name}.tmp"));
         if fs::write(&tmp, s).is_ok() {
             let _ = fs::rename(&tmp, dir.join(name));
@@ -309,5 +366,38 @@ mod tests {
         t.roll();
         assert_eq!(t.day, today());
         assert_eq!(t.sessions_today, 0);
+    }
+
+    #[test]
+    fn reminders_sort_drop_junk_and_keep_known_tones() {
+        let mut d = ReminderData::default();
+        for (i, at) in [500, 100, 300].iter().enumerate() {
+            d.items.push(Reminder {
+                id: format!("r{i}"),
+                text: format!("  n{i}  "),
+                at: *at,
+                done: false,
+            });
+        }
+        d.items.push(Reminder {
+            id: "blank".into(),
+            text: "   ".into(),
+            at: 400,
+            done: false,
+        });
+        d.items.push(Reminder {
+            id: "never".into(),
+            text: "no time".into(),
+            at: 0,
+            done: false,
+        });
+        d.tone = "kazoo".into();
+        d.anim = "explode".into();
+        d.fix();
+
+        assert_eq!(d.items.len(), 3);
+        assert_eq!(d.items[0].text, "n1");
+        assert!(d.items.windows(2).all(|w| w[0].at < w[1].at));
+        assert_eq!((d.tone.as_str(), d.anim.as_str()), ("chime", "glow"));
     }
 }

@@ -41,6 +41,11 @@ export type WeatherData = {
   unit: "c" | "f";
 };
 
+export type Tone = "chime" | "bell" | "bowl";
+export type RingAnim = "glow" | "pulse" | "ripple";
+export type Reminder = { id: string; text: string; at: number; done: boolean };
+export type ReminderData = { items: Reminder[]; tone: Tone; anim: RingAnim };
+
 export type Theme = "dark" | "ink" | "slate" | "sand" | "light" | "paper";
 export type Accent =
   | "amber"
@@ -95,6 +100,12 @@ export const api = {
 
   weatherGet: () => invoke<WeatherData>("weather_get"),
   weatherSave: (data: WeatherData) => invoke<WeatherData>("weather_save", { data }),
+
+  remindersGet: () => invoke<ReminderData>("reminders_get"),
+  remind: (text: string, at: number) => invoke<ReminderData>("reminders_add", { text, at }),
+  reminderDelete: (id: string) => invoke<ReminderData>("reminders_delete", { id }),
+  reminderConfig: (tone: Tone, anim: RingAnim) =>
+    invoke<ReminderData>("reminders_config", { tone, anim }),
 
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsSet: (settings: Settings) => invoke<void>("settings_set", { settings }),

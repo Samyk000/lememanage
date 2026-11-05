@@ -225,6 +225,7 @@ button:active {
 }
 
 .notch {
+  position: relative;
   width: 100%;
   height: 100%;
   display: grid;
@@ -1470,14 +1471,26 @@ button:active {
   display: grid;
   grid-template-columns: 166px 1fr;
   gap: 10px;
+  /* Full-panel mode folds the list away instead of hiding it, so the editor
+     widens as one motion rather than snapping. */
+  transition:
+    grid-template-columns 0.3s var(--ease),
+    gap 0.3s var(--ease);
 }
 
 .notes-side {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   border-right: 1px solid var(--line);
   padding-right: 10px;
+  transition:
+    opacity 0.18s var(--ease),
+    transform 0.3s var(--ease),
+    padding 0.3s var(--ease),
+    border-color 0.3s var(--ease);
 }
 
 .side-head {
@@ -1856,7 +1869,7 @@ button:active {
   height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* Two bordered cards instead of two naked columns: the eye gets one boundary   per subject instead of hunting a hairline between rows. */
@@ -1865,9 +1878,10 @@ button:active {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding: 7px 10px;
+  overflow: hidden;
+  padding: 8px 11px 6px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 11px;
   background: var(--surface);
 }
 
@@ -1880,7 +1894,28 @@ button:active {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--faint);
-  padding: 1px 0 5px;
+  padding: 1px 0 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.set-group svg {
+  color: var(--accent);
+  opacity: 0.75;
+}
+
+.set-sub {
+  padding: 7px 0 1px;
+  border-top: 1px solid var(--line);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.set-group + .set-sub {
+  padding-top: 3px;
+  border-top: none;
 }
 
 .set-row {
@@ -1888,8 +1923,8 @@ button:active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 30px;
-  font-size: 11.5px;
+  min-height: 29px;
+  font-size: 11px;
   color: var(--text);
   border-bottom: 1px solid var(--line);
 }
@@ -1902,17 +1937,31 @@ button:active {
 .set-row.wide {
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 5px 0;
-}
-
-.set-row.wide > span:first-child {
-  font-size: 10px;
-  color: var(--dim);
+  gap: 6px;
+  padding: 6px 0;
 }
 
 .set-row > span:first-child {
   flex: 0 0 auto;
+}
+
+.set-line > span:first-child {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.set-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.set-val {
+  font-size: 9.5px;
+  color: var(--faint);
 }
 
 kbd {
@@ -1931,7 +1980,8 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
   font-size: 10px;
 }
 
@@ -1939,6 +1989,20 @@ kbd {
   display: flex;
   gap: 6px;
   flex: 0 0 auto;
+}
+
+/* The one primary action on the whole panel. */
+.set-done {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.set-done:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  filter: brightness(1.06);
 }
 
 .seg {
@@ -2174,16 +2238,16 @@ kbd {
   padding: 12px;
 }
 
-.clip-list::-webkit-scrollbar,.read-body::-webkit-scrollbar,.side-list::-webkit-scrollbar,.app-list::-webkit-scrollbar,.ed-body::-webkit-scrollbar {
+.clip-list::-webkit-scrollbar,.read-body::-webkit-scrollbar,.side-list::-webkit-scrollbar,.app-list::-webkit-scrollbar,.ed-body::-webkit-scrollbar,.rem-list::-webkit-scrollbar {
   width: 6px;
 }
 
-.clip-list::-webkit-scrollbar-thumb,.read-body::-webkit-scrollbar-thumb,.side-list::-webkit-scrollbar-thumb,.app-list::-webkit-scrollbar-thumb,.ed-body::-webkit-scrollbar-thumb {
+.clip-list::-webkit-scrollbar-thumb,.read-body::-webkit-scrollbar-thumb,.side-list::-webkit-scrollbar-thumb,.app-list::-webkit-scrollbar-thumb,.ed-body::-webkit-scrollbar-thumb,.rem-list::-webkit-scrollbar-thumb {
   background: var(--track);
   border-radius: 3px;
 }
 
-.clip-list::-webkit-scrollbar-track,.read-body::-webkit-scrollbar-track,.side-list::-webkit-scrollbar-track,.app-list::-webkit-scrollbar-track,.ed-body::-webkit-scrollbar-track {
+.clip-list::-webkit-scrollbar-track,.read-body::-webkit-scrollbar-track,.side-list::-webkit-scrollbar-track,.app-list::-webkit-scrollbar-track,.ed-body::-webkit-scrollbar-track,.rem-list::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -2192,7 +2256,7 @@ kbd {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .focus-hero {
@@ -2456,11 +2520,16 @@ kbd {
 /* ---------------- notes: full panel ---------------- */
 
 .notes.full {
-  grid-template-columns: 1fr;
+  grid-template-columns: 0px 1fr;
+  gap: 0;
 }
 
 .notes.full .notes-side {
-  display: none;
+  opacity: 0;
+  transform: translateX(-10px);
+  padding-right: 0;
+  border-right-color: transparent;
+  pointer-events: none;
 }
 
 /* ---------------- focus: custom length ---------------- */
@@ -2503,4 +2572,395 @@ kbd {
 
 .focus-custom input::placeholder {
   color: var(--faint);
+}
+
+/* ---------------- focus: tabs + reminders ---------------- */
+
+.focus-tabs {
+  align-self: center;
+}
+
+.focus-tabs .seg-btn {
+  padding: 3px 16px;
+}
+
+.rem {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.rem-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rem-text {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.rem-text:focus {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.11);
+}
+
+.rem-text::placeholder {
+  color: var(--faint);
+}
+
+.rem-time {
+  height: 30px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  color-scheme: dark;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.rem-time:focus {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.11);
+}
+
+[data-theme="light"] .rem-time,
+[data-theme="paper"] .rem-time {
+  color-scheme: light;
+}
+
+.rem-add {
+  margin-left: 0;
+  height: 30px;
+  padding: 0 14px;
+  border-color: transparent;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.rem-add:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.06);
+}
+
+.rem-add:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Two small control strips: the label names the choice, the seg holds it. */
+.rem-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.rem-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 30px;
+  min-width: 0;
+  padding: 0 4px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.rem-lbl {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.rem-chips {
+  padding: 0;
+  gap: 1px;
+  border: none;
+  background: transparent;
+}
+
+.rem-chips .seg-btn {
+  padding: 3px 8px;
+}
+
+.rem-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.rem-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 2px 5px;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.rem-head span {
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 14px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 8.5px;
+  letter-spacing: 0;
+}
+
+.rem-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding-bottom: 10px;
+  text-align: center;
+}
+
+.rem-empty-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 5px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--faint);
+}
+
+.rem-empty b {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dim);
+}
+
+.rem-empty > span:last-child {
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.rem-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rem-item:last-child {
+  border-bottom: none;
+}
+
+.rem-when {
+  flex: 0 0 46px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.rem-when b {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.rem-when i {
+  font-size: 8.5px;
+  font-style: normal;
+  color: var(--faint);
+}
+
+.rem-what {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rem-item.done .rem-when b {
+  color: var(--faint);
+}
+
+.rem-item.done .rem-what {
+  color: var(--faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-2);
+}
+
+.rem-del {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  opacity: 0;
+}
+
+.rem-item:hover .rem-del,
+.rem-del:focus-visible {
+  opacity: 1;
+}
+
+/* ---------------- reminder ring ----------------
+   The notch window is 104 x 24, so every effect stays inside that pill: light
+   that grows outward would just be clipped by the window edge. */
+
+.notch-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+}
+
+html[data-ring="glow"] .notch-ring {
+  animation: ringGlow 3.2s var(--ease) both;
+}
+
+@keyframes ringGlow {
+  0% {
+    opacity: 0;
+    box-shadow:
+      inset 0 0 0 0 rgba(var(--accent-rgb), 0),
+      0 0 0 0 rgba(var(--accent-rgb), 0);
+  }
+  20% {
+    opacity: 1;
+    background: rgba(var(--accent-rgb), 0.1);
+    box-shadow:
+      inset 0 0 10px 1px rgba(var(--accent-rgb), 0.3),
+      0 0 18px 3px rgba(var(--accent-rgb), 0.22);
+  }
+  55% {
+    opacity: 0.55;
+    box-shadow:
+      inset 0 0 14px 2px rgba(var(--accent-rgb), 0.2),
+      0 0 22px 4px rgba(var(--accent-rgb), 0.12);
+  }
+  100% {
+    opacity: 0;
+    background: rgba(var(--accent-rgb), 0);
+    box-shadow:
+      inset 0 0 20px 3px rgba(var(--accent-rgb), 0),
+      0 0 26px 5px rgba(var(--accent-rgb), 0);
+  }
+}
+
+html[data-ring="pulse"] .notch-ring {
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
+  animation: ringPulse 2.8s var(--ease) both;
+}
+
+@keyframes ringPulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  45% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  65% {
+    opacity: 0.9;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+html[data-ring="ripple"] .notch-ring {
+  overflow: hidden;
+}
+
+html[data-ring="ripple"] .notch-ring::before,
+html[data-ring="ripple"] .notch-ring::after {
+  content: "";
+  position: absolute;
+  inset: 5px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.55);
+  animation: ringRipple 2.6s var(--ease) both;
+}
+
+html[data-ring="ripple"] .notch-ring::after {
+  animation-delay: 0.7s;
+}
+
+@keyframes ringRipple {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.55);
+  }
+  70% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+/* With the panel open the notch is unmounted, so the header dot carries the same
+   cue instead of the reminder going silent visually. */
+html[data-ring] .mark {
+  animation: markRing 1.1s var(--ease) 3;
+}
+
+@keyframes markRing {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
+  }
+  40% {
+    box-shadow: 0 0 0 5px rgba(var(--accent-rgb), 0.18);
+  }
 }
