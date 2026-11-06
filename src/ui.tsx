@@ -7,7 +7,7 @@ export type IconName =
   | "notes"
   | "screen"
   | "timer"
-  | "weather"
+  | "bell"
   | "expand"
   | "select"
   | "settings"
@@ -65,11 +65,10 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M8 2.5h4" />
     </>
   ),
-  weather: (
+  bell: (
     <>
-      <circle cx="7" cy="6.8" r="3" />
-      <path d="M7 2v1.1M2.3 6.8h1.1M3.7 3.4l.8.8M10.3 3.4l-.8.8" />
-      <path d="M8.5 16.5h6a2.7 2.7 0 0 0 .3-5.4 3.7 3.7 0 0 0-7-1 3 3 0 0 0 .7 6.4z" />
+      <path d="M5.5 13.5h9c-.9-.9-1.3-2-1.3-3.4V8.6a3.2 3.2 0 0 0-6.4 0v1.5c0 1.4-.4 2.5-1.3 3.4z" />
+      <path d="M8.4 16a1.8 1.8 0 0 0 3.2 0" />
     </>
   ),
   settings: (

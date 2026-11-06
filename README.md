@@ -9,8 +9,8 @@ Built because Vayli does eighteen things and you use seven of them.
 | Module | What it shows |
 |---|---|
 | **Home** | Screen time today, CPU/RAM/Disk rings, last two clips, latest note |
-| **Focus** | Pomodoro ring and reminders, in two tabs |
-| **Weather** | Current conditions, next eight hours, four days, °C/°F, city search |
+| **Focus** | Pomodoro ring, presets, custom length, today's tally |
+| **Reminders** | One-shot reminders with a sound and a notch animation |
 | **Notes** | Sidebar of notes, rich-text editor (bold, lists, headings, code), full-panel mode |
 | **Clipboard** | Date-grouped cards, search, pin, read, and select-many delete |
 | **Screen time** | Today's total, real app icons, per-app share, last seven days |
@@ -21,9 +21,11 @@ hydration reminders, calendar, analytics, revenue, the pet — is deliberately a
 
 ## The interaction
 
-- **Resting:** a 104 × 24 px pill, flush with the edge it is parked on, with the
-  corners that are still on screen rounded and no rim — the fill alone separates
-  it from the wallpaper. It reads as a notch, not a scrollbar or a nav bar.
+- **Resting:** a 104 × 24 px pill on the top and bottom edges, a 24 × 104 px rail
+  on the left and right — always lying along the edge it is parked on, flush, with
+  the corners that are still on screen rounded and no rim: the fill alone
+  separates it from the wallpaper. It reads as a notch, not a scrollbar or a nav
+  bar.
 - **Hover it for a moment, or click it:** the pill unfolds into a 560 × 360 panel.
   Leaving tucks it back into the same pill.
 - **Drag the notch, or the panel's top bar:** moves it anywhere. Nothing opens
@@ -34,9 +36,9 @@ hydration reminders, calendar, analytics, revenue, the pet — is deliberately a
   drop two thirds down the left side and it parks two thirds down, not in a
   corner. Top and bottom drops keep their x, side drops keep their y. Nothing
   stays floating, so a drop always ends somewhere that reads as deliberate.
-  The pill keeps its shape and proportions on every edge; a bottom drop only
-  turns the rounding around, and a side drop opens the panel sideways and turns
-  the dock into a rail.
+  The notch stands on end on a side edge; a bottom drop only turns the rounding
+  around. A side drop opens the panel sideways and turns the dock into a rail,
+  and the panel unfolds from the vertical bar it collapsed to.
 - **`Ctrl + Shift + Space`:** opens from anywhere, and closes again.
 - **`Esc`:** closes.
 - **Tray icon:** show, hide, quit.
@@ -48,13 +50,14 @@ clipped out of the notch's rectangle over 280 ms with an ease-out curve, so
 every label is at full opacity the whole way instead of arriving out of a grey
 ghost.
 
-While a pomodoro is running the resting notch shows `mm:ss` in the accent colour,
-whatever skin is selected — the countdown is the one thing worth reading without
-opening anything. Clicking expands as usual; the panel has the full timer.
+While a pomodoro is running the resting notch shows `mm:ss` in the accent colour
+(stacked top-to-bottom on a side rail), whatever skin is selected — the countdown
+is the one thing worth reading without opening anything. Clicking expands as
+usual; the panel has the full timer.
 
 The window is resized to match its contents, so collapsed it occupies 104 × 24 px
-(30 × 30 for the ring, 104 × 24 while the ring is showing a countdown) and
-does not block anything behind it. The notch itself is a fixed box pinned to its
+on the top and bottom edges, 24 × 104 px on the sides, and 30 × 30 for the ring
+on any edge, and it does not block anything behind it. The notch itself is a fixed box pinned to its
 edge rather than a percentage of the window: Rust resizes the window before React
 can unmount the notch, and a percentage-sized pill stretched into an oval for the
 frames in between. Position is saved as a point on the chosen edge — centre-x for
@@ -68,18 +71,19 @@ never sits next to something unrelated.
 
 - **Theme** — Dark, Ink, Slate, Sand, Light, Paper.
 - **Accent** — Amber, Blue, Mint, Rose, Violet, Coral, Cyan, Lime.
-- **Notch** — six skins, each shown as a live miniature in the picker:
-  - **Dot** — a 5 px accent dot that stretches into a bar on hover.
-  - **Ring** — a 30 × 30 disc with a lit rim: a comet arc and a small dot
-    circulate around the track at different speeds and in opposite directions.
-    The window itself is the circle, so it is round on every edge. Both movers are
-    a fixed gradient rotated by a transform, so the compositor moves them without
-    repainting; the loops pause while the panel is open and are off under reduced
-    motion. It is the one skin that keeps moving at rest — the others are static.
-  - **Halo** — a thin accent ring with a lit core.
-  - **Wave** — four bars that grow into an equaliser on hover.
+- **Notch** — four skins, each a live miniature above its name in the picker:
+  - **Dot** — a 5 px accent dot that stretches into a bar on hover (it grows
+    down the rail on a side edge).
+  - **Ring** — a 28 px disc in a 30 px window with a 3 px rim: a comet arc and a
+    small dot circulate around the track at different speeds and in opposite
+    directions. The disc sits 1 px inside the window on every edge, so both sides
+    of the circle rasterise identically. Both movers are a fixed gradient rotated
+    by a transform, so the compositor moves them without repainting; the loops
+    pause while the panel is open and are off under reduced motion. It is the one
+    skin that keeps moving at rest — the others are static.
   - **Bar** — a 34 px hairline that widens on hover.
-  - **Time** — the time, tabular figures.
+  - **Time** — the time in the foreground colour, tabular figures; the digits
+    stack vertically on a side rail.
 - **Dock** — Icons, Labels, or Segmented (one capsule, the current module a filled
   segment).
 - **Frosted glass** — translucent panel instead of solid.
@@ -114,10 +118,11 @@ ring fills as the phase counts down, and a finished phase stops on the next one
 instead of rolling over on its own. The count survives a restart; the tally
 starts again at midnight.
 
-The **Reminders** tab is the other half of Focus. Type what you want nudging
-about, pick a time, and press **Set**; a time already gone today means tomorrow.
-Upcoming items sit above the ones that have fired, each with its day and clock
-time. Delete removes one item.
+## Reminders
+
+Type what you want nudging about, pick a time, and press **Set**; a time already
+gone today means tomorrow. Upcoming items sit above the ones that have fired, each
+with its day and clock time. Delete removes one item.
 
 Two small choices shape how a reminder arrives:
 
@@ -130,15 +135,6 @@ Two small choices shape how a reminder arrives:
 Both choices and the list live in `reminders.json`. A reminder that came due
 while the app was closed is marked done at launch instead of ringing late. The
 app allows autoplay, so a due reminder can chime without a click.
-
-## Weather
-
-Pick a city once and the panel fetches a forecast from Open-Meteo, a keyless
-public API. It shows the current temperature, what it feels like, the next eight
-hours, and four days. The unit toggle (°C/°F) is remembered. Nothing else is
-sent: the request carries the coordinates you chose and nothing about you.
-Search needs the network too; without it the panel keeps the last forecast and
-says so.
 
 ## Why it is small
 
@@ -183,7 +179,6 @@ Plain JSON in `%APPDATA%\LemeManage\`:
 - `screentime.json` — per app, per day, in seconds
 - `timers.json` — pomodoro lengths, the running phase, and today's completed sessions
 - `reminders.json` — reminder items plus the chosen sound and notch animation
-- `weather.json` — the saved city and the °C/°F choice
 - `settings.json` — position (`anchor_x`, `anchor_y`, `side`), theme, accent, notch
   and dock style
 
@@ -200,8 +195,7 @@ Only one copy runs at a time — a second launch exits on a named mutex. Two
 instances would each hold their own snapshot of the clipboard, and whichever
 saved last would drop the other's items.
 
-No telemetry. The weather panel's Open-Meteo lookup is the only network call, and
-it only happens for a city you added. Everything else stays on the machine.
+No telemetry and no network calls. Everything stays on the machine.
 
 ## Privacy behaviour kept on purpose
 

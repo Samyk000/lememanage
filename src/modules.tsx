@@ -9,8 +9,6 @@ import type {
   ScreenSummary,
   SysStats,
   Tone,
-  WeatherData,
-  WeatherPlace,
 } from "./api";
 import { ringNotch } from "./ring";
 import { playTone } from "./sound";
@@ -20,7 +18,7 @@ import type { IconName } from "./ui";
 export type ModuleId =
   | "home"
   | "focus"
-  | "weather"
+  | "reminders"
   | "notes"
   | "clipboard"
   | "screen"
@@ -29,8 +27,8 @@ export type ModuleId =
 /** Dock order. `short` is what the "labels" dock style has room for. */
 export const MODULES: { id: ModuleId; label: string; short: string; icon: IconName }[] = [
   { id: "home", label: "Home", short: "Home", icon: "home" },
-  { id: "focus", label: "Focus", short: "Focus", icon: "timer" },
-  { id: "weather", label: "Weather", short: "Weather", icon: "weather" },
+  { id: "focus", label: "Timer", short: "Timer", icon: "timer" },
+  { id: "reminders", label: "Reminders", short: "Remind", icon: "bell" },
   { id: "notes", label: "Notes", short: "Notes", icon: "notes" },
   { id: "clipboard", label: "Clipboard", short: "Clips", icon: "clipboard" },
   { id: "screen", label: "Screen time", short: "Time", icon: "screen" },
@@ -189,7 +187,6 @@ const mmss = (n: number) =>
   `${Math.floor(n / 60)}:${String(Math.max(0, n) % 60).padStart(2, "0")}`;
 
 export function FocusModule() {
-  const [tab, setTab] = useState<"timer" | "reminders">("timer");
   const [st, setSt] = useState<FocusState | null>(null);
   const [custom, setCustom] = useState("");
 
@@ -228,84 +225,63 @@ export function FocusModule() {
 
   return (
     <div className="focus">
-      <div className="seg focus-tabs">
-        <button
-          className={`seg-btn${tab === "timer" ? " on" : ""}`}
-          onClick={() => setTab("timer")}
-        >
-          Timer
+      <div className="focus-hero">
+        <Ring value={pct} label={work ? "Work" : "Break"} size={96} />
+        <div className="focus-stack">
+          <div className="card-label">
+            {work
+              ? running
+                ? "Focusing"
+                : "Ready to focus"
+              : running
+                ? "On a break"
+                : "Break ready"}
+          </div>
+          <div className="hero-lg mono">{mmss(st?.remaining ?? total)}</div>
+          <div className="card-sub faint">
+            {sessions} session{sessions === 1 ? "" : "s"} today
+          </div>
+        </div>
+      </div>
+
+      <div className="focus-actions">
+        <button className="btn-copy focus-btn" onClick={() => act(api.focusToggle())}>
+          {running ? "Pause" : "Start"}
         </button>
-        <button
-          className={`seg-btn${tab === "reminders" ? " on" : ""}`}
-          onClick={() => setTab("reminders")}
-        >
-          Reminders
+        <button className="btn-ghost" onClick={() => act(api.focusReset())}>
+          Reset
         </button>
       </div>
 
-      {tab === "timer" ? (
-        <>
-          <div className="focus-hero">
-            <Ring value={pct} label={work ? "Work" : "Break"} size={96} />
-            <div className="focus-stack">
-              <div className="card-label">
-                {work
-                  ? running
-                    ? "Focusing"
-                    : "Ready to focus"
-                  : running
-                    ? "On a break"
-                    : "Break ready"}
-              </div>
-              <div className="hero-lg mono">{mmss(st?.remaining ?? total)}</div>
-              <div className="card-sub faint">
-                {sessions} session{sessions === 1 ? "" : "s"} today
-              </div>
-            </div>
-          </div>
-
-          <div className="focus-actions">
-            <button className="btn-copy focus-btn" onClick={() => act(api.focusToggle())}>
-              {running ? "Pause" : "Start"}
+      <div className="focus-row">
+        <div className="seg focus-presets">
+          {PRESETS.map((m) => (
+            <button
+              key={m}
+              className={`seg-btn${st && st.work_secs === m * 60 ? " on" : ""}`}
+              onClick={() => act(api.focusConfig(m, BREAK_MINS))}
+            >
+              {m} min
             </button>
-            <button className="btn-ghost" onClick={() => act(api.focusReset())}>
-              Reset
-            </button>
-          </div>
-
-          <div className="focus-row">
-            <div className="seg focus-presets">
-              {PRESETS.map((m) => (
-                <button
-                  key={m}
-                  className={`seg-btn${st && st.work_secs === m * 60 ? " on" : ""}`}
-                  onClick={() => act(api.focusConfig(m, BREAK_MINS))}
-                >
-                  {m} min
-                </button>
-              ))}
-            </div>
-            <div className="focus-custom">
-              <input
-                type="number"
-                min={1}
-                max={180}
-                placeholder="Custom"
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") applyCustom();
-                }}
-              />
-              <button className="seg-btn" onClick={applyCustom} disabled={!custom}>
-                Set
-              </button>
-            </div>
-          </div>
-        </>
-      ) : (
-        <RemindersPanel />
-      )}
+          ))}
+        </div>
+        <div className="focus-custom">
+          <input
+            type="number"
+            min={1}
+            max={180}
+            placeholder="Custom"
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applyCustom();
+            }}
+          />
+          <button className="seg-btn" onClick={applyCustom} disabled={!custom}>
+            Set
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -313,7 +289,7 @@ export function FocusModule() {
 const TONE_LABEL: Record<Tone, string> = { chime: "Chime", bell: "Bell", bowl: "Bowl" };
 const ANIM_LABEL: Record<RingAnim, string> = { glow: "Glow", pulse: "Pulse", ripple: "Ripple" };
 
-function RemindersPanel() {
+export function RemindersModule() {
   const [data, setData] = useState<ReminderData | null>(null);
   const [text, setText] = useState("");
   const [time, setTime] = useState("");
@@ -431,7 +407,7 @@ function RemindersPanel() {
         {!data ? null : pending.length === 0 && fired.length === 0 ? (
           <div className="rem-empty">
             <span className="rem-empty-mark">
-              <Icon name="timer" size={16} />
+              <Icon name="bell" size={16} />
             </span>
             <b>Nothing scheduled</b>
             <span>Anything you want a gentle nudge about.</span>
@@ -487,365 +463,6 @@ function RemindersPanel() {
               );
             })}
           </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Weather ---------------- */
-
-type Forecast = {
-  current: {
-    time: string;
-    temperature_2m: number;
-    apparent_temperature: number;
-    weather_code: number;
-    is_day: number;
-  };
-  hourly: { time: string[]; temperature_2m: number[]; weather_code: number[] };
-  daily: {
-    time: string[];
-    weather_code: number[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-  };
-};
-
-type GeoResult = {
-  name: string;
-  latitude: number;
-  longitude: number;
-  country?: string;
-  admin1?: string;
-};
-
-type Sky = "sun" | "moon" | "partly" | "cloud" | "fog" | "rain" | "snow" | "storm";
-
-/** WMO weather code -> one of seven glyphs plus words. */
-function skyOf(code: number, isDay = 1): { sky: Sky; label: string } {
-  if (code === 0) return { sky: isDay ? "sun" : "moon", label: "Clear" };
-  if (code === 1) return { sky: isDay ? "partly" : "moon", label: "Mainly clear" };
-  if (code === 2) return { sky: isDay ? "partly" : "moon", label: "Partly cloudy" };
-  if (code === 3) return { sky: "cloud", label: "Overcast" };
-  if (code === 45 || code === 48) return { sky: "fog", label: "Fog" };
-  if (code >= 51 && code <= 57) return { sky: "rain", label: "Drizzle" };
-  if (code >= 61 && code <= 67) return { sky: "rain", label: "Rain" };
-  if (code >= 71 && code <= 77) return { sky: "snow", label: "Snow" };
-  if (code >= 80 && code <= 82) return { sky: "rain", label: "Showers" };
-  if (code === 85 || code === 86) return { sky: "snow", label: "Snow showers" };
-  return { sky: "storm", label: code >= 96 ? "Thunderstorm, hail" : "Thunderstorm" };
-}
-
-function WeatherGlyph({ sky, size = 20 }: { sky: Sky; size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="wx-glyph"
-    >
-      {sky === "sun" && (
-        <>
-          <circle cx="10" cy="10" r="3.6" />
-          <path d="M10 2.4v1.5M10 16.1v1.5M2.4 10h1.5M16.1 10h1.5M4.6 4.6l1.1 1.1M14.3 14.3l1.1 1.1M15.4 4.6l-1.1 1.1M5.7 14.3l-1.1 1.1" />
-        </>
-      )}
-      {sky === "moon" && <path d="M15.8 11.6A6.6 6.6 0 0 1 8.4 4.2a6.6 6.6 0 1 0 7.4 7.4z" />}
-      {sky === "partly" && (
-        <>
-          <circle cx="6.6" cy="6.2" r="2.6" />
-          <path d="M6.6 1.6v1.1M2 6.2h1.1M3.3 2.9l.8.8M9.9 2.9l-.8.8" />
-          <path d="M8.4 16.6h6a2.7 2.7 0 0 0 .3-5.4 3.7 3.7 0 0 0-7-1 3 3 0 0 0 .7 6.4z" />
-        </>
-      )}
-      {sky === "cloud" && (
-        <path d="M5.5 16h9a3.2 3.2 0 0 0 .4-6.4 4.4 4.4 0 0 0-8.3-1.1A3.6 3.6 0 0 0 5.5 16z" />
-      )}
-      {sky === "fog" && (
-        <>
-          <path d="M5.8 12.6h8.4a3 3 0 0 0 .3-6 4.1 4.1 0 0 0-7.7-1 3.4 3.4 0 0 0-1 7z" />
-          <path d="M4.5 15.4h11M6.5 17.4h7" />
-        </>
-      )}
-      {sky === "rain" && (
-        <>
-          <path d="M5.8 12.6h8.4a3 3 0 0 0 .3-6 4.1 4.1 0 0 0-7.7-1 3.4 3.4 0 0 0-1 7z" />
-          <path d="M7.5 14.8l-.7 1.9M11 14.8l-.7 1.9M14.5 14.8l-.7 1.9" />
-        </>
-      )}
-      {sky === "snow" && (
-        <>
-          <path d="M5.8 12.6h8.4a3 3 0 0 0 .3-6 4.1 4.1 0 0 0-7.7-1 3.4 3.4 0 0 0-1 7z" />
-          <path d="M7.4 15.2v2M6.5 16.2h1.8M12 15.2v2M11.1 16.2h1.8" />
-        </>
-      )}
-      {sky === "storm" && (
-        <>
-          <path d="M5.8 12.2h8.4a3 3 0 0 0 .3-6 4.1 4.1 0 0 0-7.7-1 3.4 3.4 0 0 0-1 7z" />
-          <path d="M10.8 13l-1.9 3h2.2l-1.2 2.6" />
-        </>
-      )}
-    </svg>
-  );
-}
-
-export function WeatherModule() {
-  const [data, setData] = useState<WeatherData | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [fc, setFc] = useState<Forecast | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    api
-      .weatherGet()
-      .then((v) => alive && setData(v))
-      .catch(() => alive && setData({ place: null, unit: "c" }));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const save = (next: WeatherData) => {
-    setData(next);
-    void api.weatherSave(next).then(setData).catch(() => {});
-  };
-
-  const place = data?.place ?? null;
-  const unit = data?.unit ?? "c";
-
-  useEffect(() => {
-    if (!place) {
-      setFc(null);
-      return;
-    }
-    let alive = true;
-    const url =
-      `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}` +
-      "&current=temperature_2m,apparent_temperature,weather_code,is_day" +
-      "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
-      "&hourly=temperature_2m,weather_code&timezone=auto&forecast_days=5" +
-      (unit === "f" ? "&temperature_unit=fahrenheit" : "");
-    const load = () =>
-      fetch(url)
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
-        .then((j: Forecast) => {
-          if (!alive) return;
-          setFc(j);
-          setFailed(false);
-        })
-        .catch(() => alive && setFailed(true));
-    load();
-    const id = window.setInterval(load, 600000);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, [place?.lat, place?.lon, unit]);
-
-  if (!data) return <div className="empty">Loading…</div>;
-
-  if (!place || editing) {
-    return (
-      <PlaceSearch
-        onPick={(p) => {
-          save({ place: p, unit });
-          setEditing(false);
-        }}
-        onCancel={place ? () => setEditing(false) : undefined}
-      />
-    );
-  }
-
-  const now = fc?.current;
-  const sky = skyOf(now?.weather_code ?? 0, now?.is_day ?? 1);
-  const hours = fc
-    ? fc.hourly.time
-        .map((t, i) => ({ t, temp: fc.hourly.temperature_2m[i], code: fc.hourly.weather_code[i] }))
-        .filter((h) => h.t >= (now?.time ?? ""))
-        .slice(0, 8)
-    : [];
-  const days = fc
-    ? fc.daily.time
-        .map((t, i) => ({
-          t,
-          max: fc.daily.temperature_2m_max[i],
-          min: fc.daily.temperature_2m_min[i],
-          code: fc.daily.weather_code[i],
-        }))
-        .slice(0, 4)
-    : [];
-  const high = fc?.daily.temperature_2m_max[0];
-  const low = fc?.daily.temperature_2m_min[0];
-
-  return (
-    <div className="wx">
-      <div className="wx-head">
-        <div className="wx-now">
-          <WeatherGlyph sky={sky.sky} size={44} />
-          <div>
-            <div className="wx-temp">
-              {Math.round(now?.temperature_2m ?? 0)}
-              <span className="unit">°{unit.toUpperCase()}</span>
-            </div>
-            <div className="card-sub clamp1">
-              {sky.label} · feels {Math.round(now?.apparent_temperature ?? 0)}°
-            </div>
-          </div>
-        </div>
-        <div className="wx-side">
-          <div className="wx-place clamp1">{place.name}</div>
-          <div className="card-sub faint clamp1">
-            {place.region ? `${place.region} · ` : ""}
-            {high != null && low != null
-              ? `H ${Math.round(high)}°  L ${Math.round(low)}°`
-              : "—"}
-          </div>
-          <div className="wx-actions">
-            <button
-              className="seg-btn"
-              title="Switch unit"
-              onClick={() => save({ place, unit: unit === "c" ? "f" : "c" })}
-            >
-              °{unit.toUpperCase()}
-            </button>
-            <button className="btn-ghost" onClick={() => setEditing(true)}>
-              Change
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {!fc ? (
-        <div className="empty">{failed ? "Could not reach Open-Meteo. Check the connection." : "Fetching…"}</div>
-      ) : (
-        <>
-          <div className="wx-hours">
-            {hours.map((h) => (
-              <div key={h.t} className="wx-hour">
-                <span className="wx-hour-label">{h.t.slice(11, 16)}</span>
-                <WeatherGlyph sky={skyOf(h.code).sky} size={17} />
-                <span className="wx-hour-temp">{Math.round(h.temp)}°</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="wx-days">
-            {days.map((d, i) => (
-              <div key={d.t} className="wx-day">
-                <span className="wx-day-name">
-                  {i === 0
-                    ? "Today"
-                    : new Date(`${d.t}T12:00`).toLocaleDateString(undefined, { weekday: "short" })}
-                </span>
-                <WeatherGlyph sky={skyOf(d.code).sky} size={15} />
-                <span className="wx-day-temp mono">
-                  {Math.round(d.max)}° / {Math.round(d.min)}°
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {failed && <div className="wx-stale">Offline — showing the last forecast.</div>}
-        </>
-      )}
-    </div>
-  );
-}
-
-function PlaceSearch({
-  onPick,
-  onCancel,
-}: {
-  onPick: (p: WeatherPlace) => void;
-  onCancel?: () => void;
-}) {
-  const [q, setQ] = useState("");
-  const [res, setRes] = useState<GeoResult[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(false);
-
-  useEffect(() => {
-    const term = q.trim();
-    if (term.length < 2) {
-      setRes([]);
-      setErr(false);
-      return;
-    }
-    let alive = true;
-    const id = window.setTimeout(() => {
-      setBusy(true);
-      fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-          term
-        )}&count=6&language=en&format=json`
-      )
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
-        .then((j: { results?: GeoResult[] }) => {
-          if (!alive) return;
-          setRes(j.results ?? []);
-          setErr(false);
-        })
-        .catch(() => {
-          if (!alive) return;
-          setRes([]);
-          setErr(true);
-        })
-        .finally(() => alive && setBusy(false));
-    }, 350);
-    return () => {
-      alive = false;
-      window.clearTimeout(id);
-    };
-  }, [q]);
-
-  return (
-    <div className="wx-search">
-      <div className="search">
-        {onCancel && (
-          <button className="icon-btn" onClick={onCancel} title="Back">
-            <Icon name="back" size={15} />
-          </button>
-        )}
-        <input
-          autoFocus
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search for a city"
-        />
-        {busy && <span className="search-count">…</span>}
-      </div>
-
-      <div className="pick-list">
-        {res.map((r) => {
-          const region = [r.admin1, r.country].filter(Boolean).join(", ");
-          return (
-            <button
-              key={`${r.latitude},${r.longitude}`}
-              className="pick-row"
-              onClick={() =>
-                onPick({ name: r.name, region, lat: r.latitude, lon: r.longitude })
-              }
-            >
-              <span>{r.name}</span>
-              <span className="faint clamp1">{region}</span>
-            </button>
-          );
-        })}
-        {!res.length && !busy && (
-          <div className="empty-sm">
-            {q.trim().length < 2
-              ? "Type at least two letters."
-              : err
-              ? "Search failed. Check the connection."
-              : "No places found."}
-          </div>
         )}
       </div>
     </div>

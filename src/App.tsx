@@ -21,9 +21,9 @@ import {
   HomeModule,
   MODULES,
   NotesModule,
+  RemindersModule,
   ScreenModule,
   SystemModule,
-  WeatherModule,
 } from "./modules";
 import type { ModuleId } from "./modules";
 import { Icon } from "./ui";
@@ -51,8 +51,6 @@ const ACCENTS: { id: Accent; label: string; hex: string }[] = [
 const NOTCHES: { id: NotchStyle; label: string }[] = [
   { id: "dot", label: "Dot" },
   { id: "orb", label: "Ring" },
-  { id: "halo", label: "Halo" },
-  { id: "wave", label: "Wave" },
   { id: "bar", label: "Bar" },
   { id: "time", label: "Time" },
 ];
@@ -432,6 +430,7 @@ export default function App() {
     <div
       className="shell"
       data-notch={left > 0 ? "pill" : notch}
+      data-side={place.side}
       data-prep={prep || undefined}
       data-open={(open || closing) || undefined}
     >
@@ -477,8 +476,8 @@ export default function App() {
                 <HomeModule onOpen={setModule} />
               ) : module === "focus" ? (
                 <FocusModule />
-              ) : module === "weather" ? (
-                <WeatherModule />
+              ) : module === "reminders" ? (
+                <RemindersModule />
               ) : module === "notes" ? (
                 <NotesModule />
               ) : module === "clipboard" ? (
@@ -530,8 +529,8 @@ export default function App() {
           simply sits underneath it. */}
       <div className="notch-wrap">
         <div
-          // A countdown takes the pill's plain shape: the orb's 50% radius on a
-          // 104 × 24 window is an ellipse, which reads as a broken circle.
+          // A running session keeps the edge's orientation: the pill on top or
+          // bottom, the rail on a side.
           className={`notch ${left > 0 ? "" : `notch-${notch}`}${
             place.flush ? " flush" : " floating"
           }${place.side === "top" ? "" : ` at-${place.side}`}`}
@@ -548,15 +547,6 @@ export default function App() {
           ) : notch === "orb" ? (
             // The circle is the window itself; the core is painted in CSS.
             null
-          ) : notch === "halo" ? (
-            <span className="notch-halo" />
-          ) : notch === "wave" ? (
-            <span className="notch-wave">
-              <i />
-              <i />
-              <i />
-              <i />
-            </span>
           ) : (
             <span className="notch-pip" />
           )}
@@ -604,6 +594,23 @@ function SettingsPanel({
           Appearance
         </div>
 
+        <div className="nchips">
+          {NOTCHES.map((n) => (
+            <button
+              key={n.id}
+              className={`nchip${st?.notch === n.id ? " on" : ""}`}
+              onClick={() => patch({ notch: n.id })}
+              title={n.label}
+              aria-label={n.label}
+            >
+              <span className={`nprev nprev-${n.id}`}>
+                {n.id === "time" ? <b>9:41</b> : null}
+              </span>
+              <span className="nchip-label">{n.label}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="set-row wide">
           <div className="set-line">
             <span>Theme</span>
@@ -646,36 +653,6 @@ function SettingsPanel({
           </div>
         </div>
 
-        <div className="set-row wide">
-          <div className="set-line">
-            <span>Notch</span>
-            <span className="set-val">{NOTCHES.find((n) => n.id === st?.notch)?.label}</span>
-          </div>
-          <div className="nchips">
-            {NOTCHES.map((n) => (
-              <button
-                key={n.id}
-                className={`nchip${st?.notch === n.id ? " on" : ""}`}
-                onClick={() => patch({ notch: n.id })}
-                title={n.label}
-                aria-label={n.label}
-              >
-                <span className={`nprev nprev-${n.id}`}>
-                  {n.id === "time" ? (
-                    <b>9:41</b>
-                  ) : n.id === "wave" ? (
-                    <>
-                      <i />
-                      <i />
-                      <i />
-                    </>
-                  ) : null}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="set-row">
           <span>Dock</span>
           <div className="seg">
@@ -709,7 +686,7 @@ function SettingsPanel({
           System
         </div>
 
-        <div className="set-sub">Behaviour</div>
+        <div className="set-sub">Startup</div>
 
         <div className="set-row">
           <span>Start with Windows</span>
@@ -727,7 +704,7 @@ function SettingsPanel({
           <kbd>{st?.hotkey ?? "Ctrl+Shift+Space"}</kbd>
         </div>
 
-        <div className="set-sub">Placement</div>
+        <div className="set-sub">Maintenance</div>
 
         <div className="set-row">
           <span>Position</span>
@@ -741,8 +718,6 @@ function SettingsPanel({
             Reset
           </button>
         </div>
-
-        <div className="set-sub">Data</div>
 
         <div className="set-row">
           <span>Clipboard history</span>

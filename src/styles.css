@@ -14,7 +14,6 @@
   --dim: #a6a6b2;
   --faint: #777783;
   --notch: #0b0b0e;
-  --notch-ink: #a6a6b2;
   /* One knob per job, so a new theme only has to set these. */
   --hover: rgba(255, 255, 255, 0.055);
   --track: rgba(255, 255, 255, 0.1);
@@ -24,6 +23,9 @@
   --pop: 0 1px 3px rgba(0, 0, 0, 0.35);
   --accent: #f0b429;
   --accent-rgb: 240, 180, 41;
+  /* The accent as text. Bright accents are unreadable on a pale notch, so the
+     light themes darken it; every other theme uses the accent unchanged. */
+  --accent-text: var(--accent);
   --accent-ink: #191207;
   --accent-dim: rgba(var(--accent-rgb), 0.18);
   --r: 12px;
@@ -42,7 +44,6 @@
   --dim: #97a2b5;
   --faint: #69748a;
   --notch: #0a0f18;
-  --notch-ink: #97a2b5;
   --ink-2: #dfe6f2;
   --ink-3: #4a5468;
 }
@@ -57,7 +58,6 @@
   --dim: #adb1bb;
   --faint: #757b87;
   --notch: #191b20;
-  --notch-ink: #adb1bb;
   --line: rgba(255, 255, 255, 0.09);
   --ink-2: #e6e8ec;
   --ink-3: #5c616b;
@@ -73,7 +73,6 @@
   --dim: #b3a695;
   --faint: #7b6e60;
   --notch: #17130f;
-  --notch-ink: #b3a695;
   --line: rgba(255, 240, 220, 0.085);
   --ink-2: #efe6d9;
   --ink-3: #5f5548;
@@ -91,7 +90,6 @@
   --dim: #54545f;
   --faint: #7f7f8a;
   --notch: #ffffff;
-  --notch-ink: #54545f;
   --hover: rgba(0, 0, 0, 0.05);
   --track: rgba(0, 0, 0, 0.1);
   --grid: rgba(0, 0, 0, 0.045);
@@ -112,13 +110,17 @@
   --dim: #60594e;
   --faint: #857c6d;
   --notch: #f5f2ec;
-  --notch-ink: #60594e;
   --hover: rgba(60, 45, 20, 0.055);
   --track: rgba(60, 45, 20, 0.1);
   --grid: rgba(60, 45, 20, 0.05);
   --ink-2: #2c2822;
   --ink-3: #c2b9ab;
   --pop: 0 1px 2px rgba(60, 45, 20, 0.12);
+}
+
+[data-theme="light"],
+[data-theme="paper"] {
+  --accent-text: color-mix(in srgb, var(--accent) 62%, #000);
 }
 
 [data-accent="blue"] {
@@ -218,8 +220,17 @@ button:active {
 }
 
 .shell[data-notch="orb"] {
-  --ns-w: 30px;
-  --ns-h: 30px;
+  /* The disc is 1 px inside its window on every edge, so the panel opens out of
+     the circle you can actually see. */
+  --ns-w: 28px;
+  --ns-h: 28px;
+}
+
+/* A side rail unfolds from the vertical bar it collapsed to. */
+.shell[data-side="left"]:not([data-notch="orb"]),
+.shell[data-side="right"]:not([data-notch="orb"]) {
+  --ns-w: 24px;
+  --ns-h: 104px;
 }
 
 /* A theme/accent swap repaints every surface. Animating 30 of them at once   reads as a stutter, so transitions are off for the frame it lands on. */
@@ -285,18 +296,6 @@ button:active {
   border-radius: 12px;
 }
 
-/* Same pill on every edge, only the corners facing away from the screen edge
-   are round — so a drop on the left keeps the shape it had on top. The ring is
-   excluded: it is round everywhere, and these rules outrank a plain
-   `.notch.notch-orb`. */
-.notch.flush.at-left:not(.notch-orb) {
-  border-radius: 0 12px 12px 0;
-}
-
-.notch.flush.at-right:not(.notch-orb) {
-  border-radius: 12px 0 0 12px;
-}
-
 .notch:active {
   cursor: grabbing;
 }
@@ -329,19 +328,21 @@ button:active {
 }
 
 .notch > .notch-time {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--notch-ink);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
-/* A running pomodoro replaces whatever skin is resting here. Accent, tabular,   and no icon: at 104 × 24 the digits are the whole message. */
+/* A running pomodoro replaces whatever skin is resting here. Accent, tabular,
+   and no icon: the digits are the whole message. `--accent-text` keeps a bright
+   accent readable on the pale themes. */
 .notch > .notch-timer {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.03em;
-  color: var(--accent);
+  color: var(--accent-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -353,26 +354,87 @@ button:active {
   transform-origin: 50% 100%;
 }
 
-/* Docked to a side edge it is the same pill lying against that edge: the window
-   is 104 × 24 there too, so the default centring already fills it. */
+/* Docked to a side edge the pill stands on end: a 24 × 104 rail flush to that
+   edge, so a drop reads as the same object turned to follow the edge it is on. */
+.notch.at-left,
+.notch.at-right {
+  --nw: 24px;
+  --nh: 104px;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
+  border-radius: 0 12px 12px 0;
+  animation-name: notchInSide;
+}
+
 .notch.at-left {
+  left: 0;
+  right: auto;
   transform-origin: 0 50%;
 }
 
 .notch.at-right {
+  left: auto;
+  right: 0;
+  border-radius: 12px 0 0 12px;
   transform-origin: 100% 50%;
+}
+
+/* On a rail the same content runs down the bar instead of across it. */
+.notch.at-left:hover .notch-pip,
+.notch.at-right:hover .notch-pip {
+  width: 5px;
+  height: 26px;
+  border-radius: 3px;
+}
+
+.notch.at-left .notch-bar .notch-pip,
+.notch.at-right .notch-bar .notch-pip {
+  width: 3px;
+  height: 34px;
+}
+
+.notch.at-left .notch-bar:hover .notch-pip,
+.notch.at-right .notch-bar:hover .notch-pip {
+  width: 3px;
+  height: 46px;
+}
+
+/* Stacked digits: a 24 px rail has room for one character across. */
+.notch.at-left .notch-time,
+.notch.at-right .notch-time,
+.notch.at-left .notch-timer,
+.notch.at-right .notch-timer {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+/* It is tall, so the entrance squashes across rather than down. */
+@keyframes notchInSide {
+  from {
+    opacity: 0;
+    transform: scale(0.5, 0.78);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---- ring: a lit rim with a sweeping arc and an orbiting dot (30 × 30) ---- */
 /* Placed after the at-* rules on purpose: the ring is round on every edge. */
-/* The window is exactly the circle, so anything painted outside it is lost: the
-   track is an inset shadow, never a border, and both movers stay inside. */
+/* The disc sits 1 px inside the window on every side. Filling the window exactly
+   put its antialiased edge on the webview's own clip, which is what made one
+   side of the circle rasterise differently from the other. */
 .notch.notch-orb {
-  --nw: 30px;
-  --nh: 30px;
+  /* 1 px smaller than the window on every side: the disc keeps the edge
+     positioning of the pill (flush, centred along it), so left and right
+     margins are equal and the circle cannot lean to one side. */
+  --nw: 28px;
+  --nh: 28px;
   border-radius: 50%;
   background: var(--notch-fill);
-  box-shadow: inset 0 0 0 2px var(--line-2);
+  box-shadow: inset 0 0 0 3px var(--line-2);
   overflow: hidden;
   animation-name: orbIn;
 }
@@ -408,15 +470,15 @@ button:active {
     rgba(var(--accent-rgb), 0) 132deg,
     rgba(var(--accent-rgb), 0) 360deg
   );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
   animation: ringSweep 1.8s linear infinite;
 }
 
 /* The dot is painted on the rim once; rotating its layer orbits it the other way,
    so the two movers never line up. */
 .notch.notch-orb::after {
-  background: radial-gradient(circle at 50% 2px, var(--accent) 0 1.5px, transparent 1.6px);
+  background: radial-gradient(circle at 50% 1.5px, var(--accent) 0 1.5px, transparent 1.6px);
   animation: ringOrbit 2.8s linear infinite reverse;
 }
 
@@ -445,83 +507,6 @@ button:active {
   .notch.notch-orb::after {
     animation: none;
   }
-}
-
-/* ---- halo: a thin ring with a lit core ---- */
-.notch > .notch-halo {
-  position: relative;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1.5px solid var(--accent);
-  opacity: 0.9;
-  transition: opacity 0.2s, box-shadow 0.22s var(--ease), transform 0.22s var(--ease);
-}
-
-.notch > .notch-halo::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.notch:hover > .notch-halo {
-  opacity: 1;
-  transform: scale(1.08);
-  box-shadow: 0 0 0 4px var(--accent-dim);
-}
-
-/* ---- wave: a four-bar equalizer ---- */
-.notch > .notch-wave {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 15px;
-}
-
-.notch-wave i {
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  opacity: 1;
-  transition: height 0.2s var(--ease), opacity 0.2s;
-}
-
-.notch-wave i:nth-child(1) {
-  height: 5px;
-}
-
-.notch-wave i:nth-child(2) {
-  height: 12px;
-}
-
-.notch-wave i:nth-child(3) {
-  height: 7px;
-}
-
-.notch-wave i:nth-child(4) {
-  height: 14px;
-}
-
-.notch:hover .notch-wave i {
-  opacity: 1;
-}
-
-.notch:hover .notch-wave i:nth-child(1) {
-  height: 9px;
-}
-
-.notch:hover .notch-wave i:nth-child(2) {
-  height: 15px;
-}
-
-.notch:hover .notch-wave i:nth-child(3) {
-  height: 11px;
-}
-
-.notch:hover .notch-wave i:nth-child(4) {
-  height: 8px;
 }
 
 /* ============ panel ============ */
@@ -2233,23 +2218,40 @@ kbd {
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--sw);
 }
 
-/* Notch picker: each tile is a live miniature of the skin, so the choice is   made by looking at the shape instead of reading a word. */
+/* Notch picker: each tile is a live miniature of the skin above its name, so
+   the choice is made by looking at the shape instead of decoding a label. */
 .nchips {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 1px 0 3px;
 }
 
 .nchip {
-  width: 30px;
-  height: 22px;
+  height: 44px;
   padding: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--surface-2);
   transition: border-color 0.15s, background 0.15s, transform 0.12s var(--ease);
+}
+
+.nchip-label {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+  transition: color 0.15s;
+}
+
+.nchip.on .nchip-label {
+  color: var(--text);
 }
 
 .nchip:hover {
@@ -2291,45 +2293,19 @@ kbd {
   opacity: 0.8;
 }
 
+/* A ring, not a pie: the skin is a rim around an empty disc, and a 2 px accent
+   border is the only part of that readable at 13 px. */
 .nprev-orb::before {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle, var(--notch-fill) 0 4.4px, transparent 4.5px),
-    conic-gradient(var(--accent) 0 90deg, var(--track) 90deg 360deg);
-}
-
-.nprev-halo::before {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 1.5px solid var(--accent);
-  box-shadow: inset 0 0 0 2px rgba(var(--accent-rgb), 0.55);
-}
-
-.nprev-wave i {
-  width: 2px;
-  border-radius: 1px;
-  background: var(--accent);
-}
-
-.nprev-wave i:nth-child(1) {
-  height: 5px;
-}
-
-.nprev-wave i:nth-child(2) {
-  height: 11px;
-}
-
-.nprev-wave i:nth-child(3) {
-  height: 7px;
+  border: 2px solid var(--accent);
 }
 
 .nprev-time b {
-  font-size: 7px;
+  font-size: 7.5px;
   font-weight: 700;
-  color: var(--dim);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2434,183 +2410,6 @@ kbd {
   align-self: center;
 }
 
-/* ---------------- Weather ---------------- */
-.wx {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.wx-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.wx-now {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.wx-now .wx-glyph {
-  color: var(--accent);
-}
-
-.wx-temp {
-  font-size: 40px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.wx-temp .unit {
-  margin-left: 2px;
-  font-size: 0.45em;
-}
-
-.wx-side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  min-width: 0;
-  text-align: right;
-}
-
-.wx-place {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.wx-actions {
-  display: flex;
-  gap: 5px;
-  margin-top: 4px;
-}
-
-.wx-hours {
-  display: flex;
-  justify-content: space-between;
-  gap: 4px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface);
-}
-
-.wx-hour {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  font-size: 9.5px;
-  color: var(--dim);
-}
-
-.wx-hour-label {
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.wx-hour-temp {
-  color: var(--text);
-  font-size: 10.5px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.wx-days {
-  display: flex;
-  flex-direction: column;
-}
-
-.wx-day {
-  display: grid;
-  grid-template-columns: 52px 20px 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 2px;
-  border-bottom: 1px solid var(--line);
-}
-
-.wx-day:last-child {
-  border-bottom: none;
-}
-
-.wx-day-name {
-  font-size: 10.5px;
-  color: var(--dim);
-}
-
-.wx-day .wx-glyph {
-  color: var(--faint);
-}
-
-.wx-day-temp {
-  justify-self: end;
-  font-size: 10.5px;
-  color: var(--text);
-}
-
-.wx-stale {
-  font-size: 9.5px;
-  color: var(--faint);
-  text-align: center;
-}
-
-.wx-search {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pick-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pick-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 7px 9px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-}
-
-.pick-row:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: var(--line);
-}
-
-.pick-row:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.pick-row > span:first-child {
-  font-size: 11.5px;
-  font-weight: 600;
-}
-
-.pick-row .faint {
-  font-size: 10px;
-}
-
 /* ---------------- clipboard selection ---------------- */
 
 .clip-card.picked {
@@ -2713,18 +2512,10 @@ kbd {
   color: var(--faint);
 }
 
-/* ---------------- focus: tabs + reminders ---------------- */
-
-.focus-tabs {
-  align-self: center;
-}
-
-.focus-tabs .seg-btn {
-  padding: 3px 16px;
-}
+/* ---------------- reminders ---------------- */
 
 .rem {
-  flex: 1;
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;

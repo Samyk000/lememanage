@@ -38,7 +38,7 @@ pub struct Settings {
     pub accent: String,
     /// Frosted panel instead of solid.
     pub glass: bool,
-    /// Collapsed skin: "dot" | "orb" | "halo" | "wave" | "bar" | "time"
+    /// Collapsed skin: "dot" | "orb" | "bar" | "time"
     pub notch: String,
     /// Dock shape: "icons" | "labels" | "minimal"
     pub dock: String,
@@ -48,7 +48,7 @@ pub const THEMES: [&str; 6] = ["dark", "ink", "slate", "sand", "light", "paper"]
 pub const ACCENTS: [&str; 8] = [
     "amber", "blue", "mint", "rose", "violet", "coral", "cyan", "lime",
 ];
-pub const NOTCHES: [&str; 6] = ["dot", "orb", "halo", "wave", "bar", "time"];
+pub const NOTCHES: [&str; 4] = ["dot", "orb", "bar", "time"];
 pub const DOCKS: [&str; 3] = ["icons", "labels", "minimal"];
 pub const SIDES: [&str; 4] = ["top", "bottom", "left", "right"];
 
@@ -149,50 +149,6 @@ impl ReminderData {
         }
         if !matches!(self.anim.as_str(), "glow" | "pulse" | "ripple") {
             self.anim = "glow".into();
-        }
-    }
-}
-
-/// One saved place, so the weather panel does not ask for a city every launch.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct WeatherPlace {
-    pub name: String,
-    pub region: String,
-    pub lat: f64,
-    pub lon: f64,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(default)]
-pub struct WeatherData {
-    pub place: Option<WeatherPlace>,
-    /// "c" or "f". Anything else falls back to Celsius.
-    pub unit: String,
-}
-
-impl Default for WeatherData {
-    fn default() -> Self {
-        Self {
-            place: None,
-            unit: "c".into(),
-        }
-    }
-}
-
-impl WeatherData {
-    /// The panel posts this back, so coordinates come from outside the trust
-    /// boundary; a bad one would make every forecast request fail.
-    pub fn fix(&mut self) {
-        if self.unit != "f" {
-            self.unit = "c".into();
-        }
-        if let Some(p) = &self.place {
-            if p.name.trim().is_empty()
-                || !(-90.0..=90.0).contains(&p.lat)
-                || !(-180.0..=180.0).contains(&p.lon)
-            {
-                self.place = None;
-            }
         }
     }
 }
@@ -327,32 +283,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn weather_rejects_bad_coordinates_and_units() {
-        let mut w = WeatherData {
-            place: Some(WeatherPlace {
-                name: "Nowhere".into(),
-                region: String::new(),
-                lat: 91.0,
-                lon: 0.0,
-            }),
-            unit: "kelvin".into(),
+    fn settings_fall_back_from_retired_skins() {
+        // Halo and Wave were removed; a file that still names one must heal on
+        // load instead of leaving the notch with no skin.
+        let mut s = Settings {
+            notch: "wave".into(),
+            ..Settings::default()
         };
-        w.fix();
-        assert!(w.place.is_none());
-        assert_eq!(w.unit, "c");
+        s.fix();
+        assert_eq!(s.notch, "dot");
 
-        let mut ok = WeatherData {
-            place: Some(WeatherPlace {
-                name: "London".into(),
-                region: "England".into(),
-                lat: 51.5,
-                lon: -0.12,
-            }),
-            unit: "f".into(),
-        };
-        ok.fix();
-        assert!(ok.place.is_some());
-        assert_eq!(ok.unit, "f");
+        s.notch = "halo".into();
+        s.fix();
+        assert_eq!(s.notch, "dot");
+
+        s.notch = "orb".into();
+        s.fix();
+        assert_eq!(s.notch, "orb");
     }
 
     #[test]

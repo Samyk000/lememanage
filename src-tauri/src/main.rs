@@ -29,7 +29,6 @@ pub struct AppState {
     notes: Mutex<Vec<store::Note>>,
     screen: Mutex<store::ScreenData>,
     timer: Mutex<store::TimerState>,
-    weather: Mutex<store::WeatherData>,
     reminders: Mutex<store::ReminderData>,
     settings: Mutex<store::Settings>,
     last_clip: Mutex<String>,
@@ -93,21 +92,21 @@ fn screen_size(window: &WebviewWindow) -> (f64, f64) {
     }
 }
 
-/// Window size for a state. Every edge gets the same horizontal pill: a notch
-/// that changes proportions when you drop it on the left reads as a different
-/// object, and the panel would have to unfold from a shape that no longer
-/// exists. The ring is the one exception — it is square on every edge — and a
-/// running session overrides both with the pill, which has room for the clock.
-///
-/// `_side` is kept so callers read the same for every edge.
-fn size_for(expanded: bool, _side: &str, notch: &str, timer: bool) -> (f64, f64) {
+/// Window size for a state. Top and bottom hang a wide pill; the left and right
+/// edges get the same pill stood on end, so the notch always lies along the edge
+/// it is attached to. The ring is square on every edge, and a running session
+/// keeps the edge's own orientation — the digits stack on a side rail.
+fn size_for(expanded: bool, side: &str, notch: &str, timer: bool) -> (f64, f64) {
     if expanded {
         return (EXP_W, EXP_H);
     }
     if notch == "orb" && !timer {
         return (ORB, ORB);
     }
-    (COL_W, COL_H)
+    match side {
+        "left" | "right" => (COL_H, COL_W),
+        _ => (COL_W, COL_H),
+    }
 }
 
 /// Top-left corner for an edge and an anchor.
@@ -452,19 +451,6 @@ fn reminders_config(state: State<AppState>, tone: String, anim: String) -> store
 }
 
 #[tauri::command]
-fn weather_get(state: State<AppState>) -> store::WeatherData {
-    state.weather.lock().clone()
-}
-
-#[tauri::command(async)]
-fn weather_save(state: State<AppState>, mut data: store::WeatherData) -> store::WeatherData {
-    data.fix();
-    *state.weather.lock() = data.clone();
-    store::save("weather.json", &data);
-    data
-}
-
-#[tauri::command]
 fn settings_get(state: State<AppState>) -> store::Settings {
     state.settings.lock().clone()
 }
@@ -745,11 +731,6 @@ fn main() {
                 t.roll();
                 t
             }),
-            weather: Mutex::new({
-                let mut w: store::WeatherData = store::load("weather.json");
-                w.fix();
-                w
-            }),
             reminders: Mutex::new({
                 let mut r: store::ReminderData = store::load("reminders.json");
                 r.fix();
@@ -785,8 +766,6 @@ fn main() {
             focus_toggle,
             focus_reset,
             focus_config,
-            weather_get,
-            weather_save,
             reminders_get,
             reminders_add,
             reminders_delete,

@@ -29,18 +29,6 @@ export type FocusState = {
   sessions_today: number;
 };
 
-export type WeatherPlace = {
-  name: string;
-  region: string;
-  lat: number;
-  lon: number;
-};
-
-export type WeatherData = {
-  place: WeatherPlace | null;
-  unit: "c" | "f";
-};
-
 export type Tone = "chime" | "bell" | "bowl";
 export type RingAnim = "glow" | "pulse" | "ripple";
 export type Reminder = { id: string; text: string; at: number; done: boolean };
@@ -56,7 +44,7 @@ export type Accent =
   | "coral"
   | "cyan"
   | "lime";
-export type NotchStyle = "dot" | "orb" | "halo" | "wave" | "bar" | "time";
+export type NotchStyle = "dot" | "orb" | "bar" | "time";
 export type DockStyle = "icons" | "labels" | "minimal";
 /** Which screen edge the notch hangs from. */
 export type Side = "top" | "bottom" | "left" | "right";
@@ -97,9 +85,6 @@ export const api = {
   focusReset: () => invoke<FocusState>("focus_reset"),
   focusConfig: (workMins: number, breakMins: number) =>
     invoke<FocusState>("focus_config", { workMins, breakMins }),
-
-  weatherGet: () => invoke<WeatherData>("weather_get"),
-  weatherSave: (data: WeatherData) => invoke<WeatherData>("weather_save", { data }),
 
   remindersGet: () => invoke<ReminderData>("reminders_get"),
   remind: (text: string, at: number) => invoke<ReminderData>("reminders_add", { text, at }),
