@@ -91,12 +91,13 @@ fn screen_size(window: &WebviewWindow) -> (f64, f64) {
 }
 
 /// Window size for a state. The orb is round, so it ignores the bar/rail
-/// orientation and stays square on every edge.
-fn size_for(expanded: bool, side: &str, notch: &str) -> (f64, f64) {
+/// orientation and stays square on every edge — except while a session is
+/// counting down, when the notch has to be wide enough for the clock.
+fn size_for(expanded: bool, side: &str, notch: &str, timer: bool) -> (f64, f64) {
     if expanded {
         return (EXP_W, EXP_H);
     }
-    if notch == "orb" {
+    if notch == "orb" && !timer {
         return (ORB, ORB);
     }
     match side {
@@ -125,11 +126,24 @@ fn target_of(side: &str, anchor: (f64, f64), (w, h): (f64, f64), (sw, sh): (f64,
     )
 }
 
+/// True while a running session is showing on the resting notch. The panel is a
+/// separate world: it has its own countdown, so this only matters collapsed.
+fn timer_resting(state: &AppState, expanded: bool) -> bool {
+    !expanded && state.timer.lock().running
+}
+
 /// Single place that positions and sizes the window for a state.
-fn layout(window: &WebviewWindow, expanded: bool, anchor: (f64, f64), side: &str, notch: &str) {
+fn layout(
+    window: &WebviewWindow,
+    expanded: bool,
+    anchor: (f64, f64),
+    side: &str,
+    notch: &str,
+    timer: bool,
+) {
     GLIDE.fetch_add(1, Ordering::SeqCst);
     let (sw, sh) = screen_size(window);
-    let size = size_for(expanded, side, notch);
+    let size = size_for(expanded, side, notch, timer);
     let (x, y) = target_of(side, anchor, size, (sw, sh));
     let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(size.0, size.1)));
     let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
@@ -209,40 +223,32 @@ fn clip_pin(state: State<AppState>, id: String) -> Vec<store::ClipItem> {
     if let Some(it) = items.iter_mut().find(|i| i.id == id) {
         it.pinned = !it.pinned;
     }
-    let snap = items.clone();
-    drop(items);
-    store::save("clipboard.json", &snap);
-    snap
+    store::save("clipboard.json", &*items);
+    items.clone()
 }
 
 #[tauri::command(async)]
 fn clip_delete(state: State<AppState>, id: String) -> Vec<store::ClipItem> {
     let mut items = state.clip.lock();
     items.retain(|i| i.id != id);
-    let snap = items.clone();
-    drop(items);
-    store::save("clipboard.json", &snap);
-    snap
+    store::save("clipboard.json", &*items);
+    items.clone()
 }
 
 #[tauri::command(async)]
 fn clip_delete_many(state: State<AppState>, ids: Vec<String>) -> Vec<store::ClipItem> {
     let mut items = state.clip.lock();
     items.retain(|i| !ids.contains(&i.id));
-    let snap = items.clone();
-    drop(items);
-    store::save("clipboard.json", &snap);
-    snap
+    store::save("clipboard.json", &*items);
+    items.clone()
 }
 
 #[tauri::command(async)]
 fn clip_clear(state: State<AppState>) -> Vec<store::ClipItem> {
     let mut items = state.clip.lock();
     items.retain(|i| i.pinned);
-    let snap = items.clone();
-    drop(items);
-    store::save("clipboard.json", &snap);
-    snap
+    store::save("clipboard.json", &*items);
+    items.clone()
 }
 
 #[tauri::command(async)]
@@ -289,20 +295,16 @@ fn notes_save(
             },
         ),
     }
-    let snap = notes.clone();
-    drop(notes);
-    store::save("notes.json", &snap);
-    snap
+    store::save("notes.json", &*notes);
+    notes.clone()
 }
 
 #[tauri::command(async)]
 fn notes_delete(state: State<AppState>, id: String) -> Vec<store::Note> {
     let mut notes = state.notes.lock();
     notes.retain(|n| n.id != id);
-    let snap = notes.clone();
-    drop(notes);
-    store::save("notes.json", &snap);
-    snap
+    store::save("notes.json", &*notes);
+    notes.clone()
 }
 
 /// The app must never bill itself. Older recordings still carry the pre-rename name.
@@ -380,10 +382,8 @@ fn focus_toggle(state: State<AppState>) -> store::TimerState {
         t.remaining = t.phase_secs();
     }
     t.running = !t.running;
-    let snap = t.clone();
-    drop(t);
-    store::save("timers.json", &snap);
-    snap
+    store::save("timers.json", &*t);
+    t.clone()
 }
 
 #[tauri::command(async)]
@@ -393,10 +393,8 @@ fn focus_reset(state: State<AppState>) -> store::TimerState {
     t.running = false;
     t.is_work = true;
     t.remaining = t.work_secs;
-    let snap = t.clone();
-    drop(t);
-    store::save("timers.json", &snap);
-    snap
+    store::save("timers.json", &*t);
+    t.clone()
 }
 
 #[tauri::command(async)]
@@ -409,10 +407,8 @@ fn focus_config(state: State<AppState>, work_mins: u32, break_mins: u32) -> stor
     t.running = false;
     t.is_work = true;
     t.remaining = t.work_secs;
-    let snap = t.clone();
-    drop(t);
-    store::save("timers.json", &snap);
-    snap
+    store::save("timers.json", &*t);
+    t.clone()
 }
 
 #[tauri::command]
@@ -430,20 +426,16 @@ fn reminders_add(state: State<AppState>, text: String, at: i64) -> store::Remind
         done: false,
     });
     data.fix();
-    let snap = data.clone();
-    drop(data);
-    store::save("reminders.json", &snap);
-    snap
+    store::save("reminders.json", &*data);
+    data.clone()
 }
 
 #[tauri::command(async)]
 fn reminders_delete(state: State<AppState>, id: String) -> store::ReminderData {
     let mut data = state.reminders.lock();
     data.items.retain(|r| r.id != id);
-    let snap = data.clone();
-    drop(data);
-    store::save("reminders.json", &snap);
-    snap
+    store::save("reminders.json", &*data);
+    data.clone()
 }
 
 #[tauri::command(async)]
@@ -452,10 +444,8 @@ fn reminders_config(state: State<AppState>, tone: String, anim: String) -> store
     data.tone = tone;
     data.anim = anim;
     data.fix();
-    let snap = data.clone();
-    drop(data);
-    store::save("reminders.json", &snap);
-    snap
+    store::save("reminders.json", &*data);
+    data.clone()
 }
 
 #[tauri::command]
@@ -503,7 +493,7 @@ fn settings_set(app: tauri::AppHandle, state: State<AppState>, mut settings: sto
         };
         let expanded = state.expanded.load(Ordering::Relaxed);
         let anchor = anchor_of(&state, &window);
-        layout(&window, expanded, anchor, &settings.side, &settings.notch);
+        layout(&window, expanded, anchor, &settings.side, &settings.notch, timer_resting(&state, expanded));
     }
 }
 
@@ -520,7 +510,7 @@ fn apply_expanded(app: &tauri::AppHandle, expanded: bool) {
         let s = state.settings.lock();
         (s.side.clone(), s.notch.clone())
     };
-    layout(&window, expanded, anchor, &side, &notch);
+    layout(&window, expanded, anchor, &side, &notch, timer_resting(&state, expanded));
     if let Ok(h) = window.hwnd() {
         win::set_no_activate(h.0 as isize, !expanded);
     }
@@ -613,7 +603,7 @@ fn anchor_after_drag(state: State<AppState>, window: WebviewWindow) -> Placement
         (s.side.clone(), s.notch.clone())
     };
     // Measure with the rectangle the user actually sees, so the gaps are real.
-    let (w, h) = size_for(expanded, &cur_side, &notch);
+    let (w, h) = size_for(expanded, &cur_side, &notch, timer_resting(&state, expanded));
 
     // A drag can end past an edge; clamp before measuring the gaps.
     let left = (p.x as f64 / scale).clamp(0.0, (sw - w).max(0.0));
@@ -652,7 +642,7 @@ fn anchor_after_drag(state: State<AppState>, window: WebviewWindow) -> Placement
         store::save("settings.json", &snap);
     }
 
-    let size = size_for(expanded, side, &notch);
+    let size = size_for(expanded, side, &notch, timer_resting(&state, expanded));
     // One resize up front: the orientation flip is a single reflow, then only
     // the position animates. An expanded panel keeps its size and just slides.
     if !expanded {
@@ -683,7 +673,7 @@ fn reset_position(state: State<AppState>, window: WebviewWindow) {
     }
     let anchor = anchor_of(&state, &window);
     let expanded = state.expanded.load(Ordering::Relaxed);
-    layout(&window, expanded, anchor, "top", &notch);
+    layout(&window, expanded, anchor, "top", &notch, timer_resting(&state, expanded));
 }
 
 #[tauri::command]
@@ -786,7 +776,7 @@ fn main() {
                     let s = st.settings.lock();
                     (s.side.clone(), s.notch.clone())
                 };
-                layout(&window, false, anchor, &side, &notch);
+                layout(&window, false, anchor, &side, &notch, timer_resting(&st, false));
                 // Seed the CPU baseline so the first poll reports a real figure, not 0%.
                 win::cpu_sample(&mut st.cpu_prev.lock());
             }
@@ -837,9 +827,8 @@ fn main() {
                             None => break,
                         }
                     }
-                    let snap = items.clone();
+                    store::save("clipboard.json", &*items);
                     drop(items);
-                    store::save("clipboard.json", &snap);
                     let _ = h1.emit("clip-updated", ());
                 }
             });
@@ -871,8 +860,7 @@ fn main() {
                     }
                     tick += 1;
                     if tick % 15 == 0 {
-                        let snap = st.screen.lock().clone();
-                        store::save("screentime.json", &snap);
+                        store::save("screentime.json", &*st.screen.lock());
                         let _ = h2.emit("screen-updated", ());
                     }
                 }
@@ -904,9 +892,22 @@ fn main() {
                     }
                     tick += 1;
                     if ended || (t.running && tick % 10 == 0) {
-                        let snap = t.clone();
-                        drop(t);
-                        store::save("timers.json", &snap);
+                        store::save("timers.json", &*t);
+                    }
+                    drop(t);
+                    // The pill was only ever wide enough for the countdown, so
+                    // the orb gets its circle back the moment the session stops.
+                    if ended {
+                        // Tell React the countdown is over before the window
+                        // shrinks: its own poll is up to a second behind and
+                        // would paint digits into a 30 px circle.
+                        let _ = h3.emit("focus-updated", ());
+                        if !st.expanded.load(Ordering::Relaxed) {
+                            let orb = st.settings.lock().notch == "orb";
+                            if orb {
+                                apply_expanded(&h3, false);
+                            }
+                        }
                     }
                 }
             });
@@ -934,9 +935,8 @@ fn main() {
                     tone: data.tone.clone(),
                     anim: data.anim.clone(),
                 };
-                let snap = data.clone();
+                store::save("reminders.json", &*data);
                 drop(data);
-                store::save("reminders.json", &snap);
                 let _ = h4.emit("reminder-due", due);
             });
 

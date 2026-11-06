@@ -41,12 +41,22 @@ hydration reminders, calendar, analytics, revenue, the pet — is deliberately a
 
 Closing is immediate: the panel unmounts and the window shrinks in the same
 frame, then the notch fades in. There is no fade-out phase to wait through.
+Opening is a wipe, not a fade: the panel's content is clipped in from the edge the
+notch hangs on over 280 ms with an ease-out curve, so every label is at full
+opacity the whole way instead of arriving out of a grey ghost.
+
+While a pomodoro is running the resting notch shows `mm:ss` in the accent colour,
+whatever skin is selected — the countdown is the one thing worth reading without
+opening anything. Clicking expands as usual; the panel has the full timer.
 
 The window is resized to match its contents, so collapsed it occupies 104 × 24 px
-(30 × 30 for the round orb) and does not block anything behind it. Position is
-saved as a point on the chosen edge — centre-x for the top and bottom edges,
-centre-y for the sides — so expanding, collapsing or changing skin can never
-drift it along the edge.
+(30 × 30 for the round orb, 104 × 24 while that orb is showing a countdown) and
+does not block anything behind it. The notch itself is a fixed box pinned to its
+edge rather than a percentage of the window: Rust resizes the window before React
+can unmount the notch, and a percentage-sized pill stretched into an oval for the
+frames in between. Position is saved as a point on the chosen edge — centre-x for
+the top and bottom edges, centre-y for the sides — so expanding, collapsing or
+changing skin can never drift it along the edge.
 
 ## Appearance
 
@@ -57,8 +67,10 @@ never sits next to something unrelated.
 - **Accent** — Amber, Blue, Mint, Rose, Violet, Coral, Cyan, Lime.
 - **Notch** — six skins, each shown as a live miniature in the picker:
   - **Dot** — a 5 px accent dot that stretches into a bar on hover.
-  - **Orb** — a 30 × 30 circle with two accent gradients drifting inside it like
-    smoke. The window itself is the circle, so it is round on every edge.
+  - **Orb** — a 30 × 30 pearl: a soft accent light along the bottom inner edge
+    and one lit dot in the middle that swells under the cursor. The window itself
+    is the circle, so it is round on every edge; every layer is concentric and the
+    entrance scales evenly, which is what keeps it from reading as an egg.
   - **Halo** — a thin accent ring with a lit core.
   - **Wave** — four bars that grow into an equaliser on hover.
   - **Bar** — a 34 px hairline that widens on hover.
@@ -173,7 +185,10 @@ Writes go to a `.tmp` file and are renamed into place, so a force-kill mid-write
 cannot truncate the real file. A UTF-8 BOM is tolerated on load: an editor that
 adds one would otherwise make the whole file read as empty and get overwritten.
 Saves themselves are serialised, because a second save truncating the shared temp
-file would publish a half-written document the same way.
+file would publish a half-written document the same way. Each save also happens
+while the lock that owns the value is still held: a snapshot cloned before a newer
+write would otherwise land after it and resurrect the older state — observed as a
+paused timer starting itself again.
 
 Only one copy runs at a time — a second launch exits on a named mutex. Two
 instances would each hold their own snapshot of the clipboard, and whichever

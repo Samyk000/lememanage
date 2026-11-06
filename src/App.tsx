@@ -5,6 +5,7 @@ import { api } from "./api";
 import type {
   Accent,
   DockStyle,
+  FocusState,
   NotchStyle,
   Placement,
   RingAnim,
@@ -65,6 +66,10 @@ const DOCKS: { id: DockStyle; label: string }[] = [
 /** How long a drop stays put before a stray mouse-leave can tuck it away. */
 const QUIET = 500;
 
+/** "24:59" — the resting notch has room for minutes and seconds, nothing more. */
+const mmss = (s: number) =>
+  `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
 export default function App() {
   const [open, setOpen] = useState(false);
   const [module, setModule] = useState<ModuleId>("home");
@@ -72,6 +77,7 @@ export default function App() {
   const [st, setSt] = useState<Settings | null>(null);
   const [place, setPlace] = useState<Placement>({ side: "top", flush: true });
   const [clock, setClock] = useState("");
+  const [focus, setFocus] = useState<FocusState | null>(null);
 
   const leaveTimer = useRef<number | null>(null);
   const hoverTimer = useRef<number | null>(null);
@@ -83,6 +89,9 @@ export default function App() {
   const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   const notch = st?.notch ?? "dot";
+  // A running session owns the resting notch: it is the one thing you want to
+  // read without opening anything.
+  const left = focus?.running ? focus.remaining : 0;
 
   useEffect(() => {
     api.settingsGet().then(setSt).catch(() => {});
@@ -127,6 +136,25 @@ export default function App() {
     const id = window.setInterval(tick, 10000);
     return () => window.clearInterval(id);
   }, []);
+
+  // Only while collapsed: the Focus module polls the same command when the panel
+  // is open, and the resting notch is where a running countdown belongs.
+  useEffect(() => {
+    if (open) return;
+    let alive = true;
+    const tick = () => {
+      api
+        .focusGet()
+        .then((s) => alive && setFocus(s))
+        .catch(() => {});
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [open]);
 
   // Grow the window first: the panel mounts into a window that already fits it,
   // so the entrance animation never plays inside a 104×24 viewport.
@@ -205,6 +233,21 @@ export default function App() {
         setOpen(e.payload.expanded);
       }
     )
+      .then((f) => (un = f))
+      .catch(() => {});
+    return () => un?.();
+  }, []);
+
+  // Rust ends a phase on its own tick, so the notch hears about it immediately
+  // instead of waiting for the next poll with a stale countdown.
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    listen("focus-updated", () => {
+      api
+        .focusGet()
+        .then(setFocus)
+        .catch(() => {});
+    })
       .then((f) => (un = f))
       .catch(() => {});
     return () => un?.();
@@ -411,23 +454,24 @@ export default function App() {
       {!open && (
         <div className="notch-wrap">
           <div
-            className={`notch notch-${notch}${place.flush ? " flush" : " floating"}${
-              place.side === "top" ? "" : ` at-${place.side}`
-            }`}
+            // A countdown takes the pill's plain shape: the orb's 50% radius on a
+            // 104 × 24 window is an ellipse, which reads as a broken circle.
+            className={`notch ${left > 0 ? "" : `notch-${notch}`}${
+              place.flush ? " flush" : " floating"
+            }${place.side === "top" ? "" : ` at-${place.side}`}`}
             onMouseDown={notchDown}
             onMouseEnter={hoverStart}
             onMouseMove={hoverStart}
             onMouseLeave={hoverStop}
             title="LemeManage"
           >
-            {notch === "time" ? (
+            {left > 0 ? (
+              <span className="notch-timer">{mmss(left)}</span>
+            ) : notch === "time" ? (
               <span className="notch-time">{clock}</span>
             ) : notch === "orb" ? (
-              // Two drifting fog layers; the accent gradient is painted by CSS.
-              <span className="notch-orb">
-                <i className="fog fog-a" />
-                <i className="fog fog-b" />
-              </span>
+              // The circle is the window itself; the core is painted in CSS.
+              null
             ) : notch === "halo" ? (
               <span className="notch-halo" />
             ) : notch === "wave" ? (

@@ -217,7 +217,7 @@ button:active {
 }
 
 /* ============ resting notch ============ */
-/* The wrap fills the window and the notch fills the wrap, so the pill is always   exactly the window — a resize (104×24 → 24×104) can never clip it mid-frame. */
+/* The wrap fills the window; the notch itself is a fixed box pinned to the edge   it hangs from. Rust resizes the window before React can unmount the notch, so   filling the window with `100%` stretched the pill — and turned the orb into a   giant oval — for the frames in between. */
 .notch-wrap {
   position: absolute;
   inset: 0;
@@ -225,9 +225,15 @@ button:active {
 }
 
 .notch {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  --nw: 104px;
+  --nh: 24px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: var(--nw);
+  height: var(--nh);
+  margin: 0 auto;
   display: grid;
   place-items: center;
   background: var(--notch);
@@ -310,8 +316,19 @@ button:active {
   font-variant-numeric: tabular-nums;
 }
 
+/* A running pomodoro replaces whatever skin is resting here. Accent, tabular,   and no icon: at 104 × 24 the digits are the whole message. */
+.notch > .notch-timer {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Hanging from the bottom edge the pill is upside down. */
 .notch.at-bottom {
+  top: auto;
+  bottom: 0;
   border-top: 1px solid var(--line);
   border-bottom: none;
   border-radius: 12px 12px 0 0;
@@ -319,8 +336,15 @@ button:active {
   animation-name: notchIn;
 }
 
-/* Docked to a side edge the notch stands up. The window itself is 24 × 104 and   the pill fills it, so these rules only describe the shape. */
+/* Docked to a side edge the notch stands up: 24 wide, 104 tall, centred on the   edge point it was dropped at. */
 .notch.at-left {
+  --nw: 24px;
+  --nh: 104px;
+  left: 0;
+  right: auto;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
   border-top: 1px solid var(--line);
   border-left: none;
   border-radius: 0 12px 12px 0;
@@ -329,6 +353,13 @@ button:active {
 }
 
 .notch.at-right {
+  --nw: 24px;
+  --nh: 104px;
+  right: 0;
+  left: auto;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
   border-top: 1px solid var(--line);
   border-right: none;
   border-radius: 12px 0 0 12px;
@@ -369,67 +400,70 @@ button:active {
   height: 46px;
 }
 
-.notch.at-left .notch-time,.notch.at-right .notch-time {
+.notch.at-left .notch-time,.notch.at-right .notch-time,
+.notch.at-left .notch-timer,.notch.at-right .notch-timer {
   writing-mode: vertical-rl;
   text-orientation: upright;
   letter-spacing: 0.04em;
 }
 
-/* ---- orb: a circle with fog drifting inside (its window is 30 × 30) ---- */
+/* ---- orb: a pearl with one lit core (its window is 30 × 30) ---- */
 /* Placed after the at-* rules on purpose: the orb is round on every edge. */
+/* Every layer here is concentric. An off-centre blob at 30px reads as a lopsided   egg, and a squashed entrance reads as a broken circle, so the entrance scales   evenly and the light sits in the middle. */
 .notch.notch-orb {
-  position: relative;
+  --nw: 30px;
+  --nh: 30px;
   border: 1px solid var(--line-2);
   border-radius: 50%;
-  background: var(--notch);
+  background: radial-gradient(circle at 34% 26%, var(--surface-2), var(--notch) 62%);
   overflow: hidden;
   /* The window is exactly the circle, so an outer box-shadow gets clipped into a     visible square. The light stays inside. */
-  box-shadow: inset 0 0 10px -2px rgba(var(--accent-rgb), 0.6);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -6px 9px -5px rgba(var(--accent-rgb), 0.75);
+  animation-name: orbIn;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.22s var(--ease);
+}
+
+@keyframes orbIn {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .notch.notch-orb:hover {
-  box-shadow: inset 0 0 12px -1px rgba(var(--accent-rgb), 0.85);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -6px 9px -4px rgba(var(--accent-rgb), 0.95);
 }
 
-/* Two drifting blobs. They only run while the cursor is on the orb: measured on   this machine, an always-on 60fps animation in the collapsed window costs   ~15% of one core (WebView2 repaints per vsync even with steps()), and a paused   animation costs 0. Hovering is when anyone is looking anyway.   Two different periods keep it from pulsing in lockstep, which would read as a   heartbeat rather than smoke. */
-.notch-orb .fog {
+/* The core is painted, not laid out: inset 0 with an auto margin centres a fixed   box in any parent, and it is the only thing that moves on hover, so the orb   stays a circle at every frame. */
+.notch.notch-orb::after {
+  content: "";
   position: absolute;
-  inset: -8px;
+  inset: 0;
+  width: 7px;
+  height: 7px;
+  margin: auto;
   border-radius: 50%;
-  background: radial-gradient(      circle at 34% 30%,      rgba(var(--accent-rgb), 0.95),      rgba(var(--accent-rgb), 0.35) 45%,      transparent 68%    ),    radial-gradient(circle at 70% 68%, rgba(var(--accent-rgb), 0.5), transparent 55%);
-  will-change: transform, opacity;
-  animation: fogA 9s ease-in-out infinite paused;
+  background: var(--accent);
+  box-shadow: 0 0 9px 1px rgba(var(--accent-rgb), 0.7);
+  transition:
+    transform 0.3s var(--ease),
+    box-shadow 0.3s var(--ease);
 }
 
-.notch-orb .fog-b {
-  background: radial-gradient(      circle at 62% 72%,      rgba(255, 255, 255, 0.42),      transparent 52%    ),    radial-gradient(circle at 42% 38%, rgba(var(--accent-rgb), 0.7), transparent 58%);
-  animation: fogB 13s ease-in-out infinite paused;
-}
-
-.notch:hover .fog {
-  animation-play-state: running;
-}
-
-@keyframes fogA {
-  0%,  100% {
-    transform: rotate(0deg) scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: rotate(150deg) scale(1.28);
-    opacity: 1;
-  }
-}
-
-@keyframes fogB {
-  0%,  100% {
-    transform: rotate(0deg) scale(1.18);
-    opacity: 0.65;
-  }
-  50% {
-    transform: rotate(-190deg) scale(0.88);
-    opacity: 0.95;
-  }
+.notch.notch-orb:hover::after {
+  transform: scale(1.45);
+  box-shadow: 0 0 13px 3px rgba(var(--accent-rgb), 0.9);
 }
 
 /* ---- halo: a thin ring with a lit core ---- */
@@ -530,7 +564,7 @@ button:active {
   border-radius: var(--r);
   overflow: hidden;
   transform-origin: 50% 0;
-  animation: panelIn 240ms var(--ease) both;
+  animation: panelIn 280ms cubic-bezier(0.2, 0.72, 0.24, 1) both;
   z-index: 2;
 }
 
@@ -582,49 +616,42 @@ button:active {
   -webkit-backdrop-filter: blur(30px) saturate(1.5);
 }
 
+/* The panel unfurls from the edge the notch hangs on. A clip wipe keeps every   glyph at full opacity the whole way; fading the whole panel read as a loading   state, which is what made opening feel unfinished. */
 @keyframes panelIn {
   from {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.96);
+    clip-path: inset(0 0 100% 0);
   }
   to {
-    opacity: 1;
-    transform: none;
+    clip-path: inset(0 0 0 0);
   }
 }
 
 /* Bottom dock: the panel rises into place rather than dropping. */
 @keyframes panelInUp {
   from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
+    clip-path: inset(100% 0 0 0);
   }
   to {
-    opacity: 1;
-    transform: none;
+    clip-path: inset(0 0 0 0);
   }
 }
 
-/* Side panels slide in from their own edge instead of dropping. */
+/* Side panels open across their own edge instead of dropping. */
 @keyframes panelInLeft {
   from {
-    opacity: 0;
-    transform: translateX(-16px) scale(0.97);
+    clip-path: inset(0 100% 0 0);
   }
   to {
-    opacity: 1;
-    transform: none;
+    clip-path: inset(0 0 0 0);
   }
 }
 
 @keyframes panelInRight {
   from {
-    opacity: 0;
-    transform: translateX(16px) scale(0.97);
+    clip-path: inset(0 0 0 100%);
   }
   to {
-    opacity: 1;
-    transform: none;
+    clip-path: inset(0 0 0 0);
   }
 }
 
@@ -2158,7 +2185,8 @@ kbd {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: radial-gradient(    circle at 34% 30%,    var(--accent),    rgba(var(--accent-rgb), 0.45) 55%,    rgba(var(--accent-rgb), 0.1)  );
+  border: 1px solid var(--line-2);
+  background:    radial-gradient(circle, var(--accent) 0 2.2px, transparent 2.8px),    var(--notch);
 }
 
 .nprev-halo::before {

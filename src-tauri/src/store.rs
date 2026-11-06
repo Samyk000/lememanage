@@ -279,6 +279,9 @@ where
         .unwrap_or_default()
 }
 
+/// Call this while still holding the lock that owns `v`: a snapshot cloned
+/// before a newer write would otherwise land after it and resurrect the older
+/// state (a paused timer starting itself again).
 pub fn save<T: Serialize>(name: &str, v: &T) {
     if let Ok(s) = serde_json::to_string(v) {
         let dir = data_dir();
