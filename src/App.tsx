@@ -39,18 +39,18 @@ const THEMES: { id: Theme; label: string; bg: string; ink: string }[] = [
 
 const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: "amber", label: "Amber", hex: "#f0b429" },
-  { id: "blue", label: "Blue", hex: "#4c9aff" },
-  { id: "mint", label: "Mint", hex: "#3ddc97" },
-  { id: "rose", label: "Rose", hex: "#ff6b8b" },
-  { id: "violet", label: "Violet", hex: "#a78bfa" },
-  { id: "coral", label: "Coral", hex: "#ff7a59" },
-  { id: "cyan", label: "Cyan", hex: "#38d6e0" },
-  { id: "lime", label: "Lime", hex: "#a3e635" },
+  { id: "blue", label: "Blue", hex: "#5aa7ff" },
+  { id: "mint", label: "Mint", hex: "#2fe6a1" },
+  { id: "rose", label: "Rose", hex: "#ff5f86" },
+  { id: "violet", label: "Violet", hex: "#b18cff" },
+  { id: "coral", label: "Coral", hex: "#ff7a52" },
+  { id: "cyan", label: "Cyan", hex: "#2fdde8" },
+  { id: "lime", label: "Lime", hex: "#b0f03a" },
 ];
 
 const NOTCHES: { id: NotchStyle; label: string }[] = [
   { id: "dot", label: "Dot" },
-  { id: "orb", label: "Orb" },
+  { id: "orb", label: "Ring" },
   { id: "halo", label: "Halo" },
   { id: "wave", label: "Wave" },
   { id: "bar", label: "Bar" },
@@ -60,11 +60,23 @@ const NOTCHES: { id: NotchStyle; label: string }[] = [
 const DOCKS: { id: DockStyle; label: string }[] = [
   { id: "icons", label: "Icons" },
   { id: "labels", label: "Labels" },
-  { id: "minimal", label: "Minimal" },
+  { id: "minimal", label: "Segmented" },
 ];
 
 /** How long a drop stays put before a stray mouse-leave can tuck it away. */
 const QUIET = 500;
+
+/** The panel folds back into the notch for this long before the window shrinks.
+ *  Must stay under the delay Rust uses before resizing the window. */
+const CLOSE_MS = 170;
+
+/** WebView2 anchors the old frame to the window's top-left while it resizes, so
+ *  for one frame the pill replays at the panel's left edge. Blanking the notch
+ *  first leaves nothing to anchor. Two frames: one to commit, one to paint. */
+const nextPaint = () =>
+  new Promise<void>((r) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => r()))
+  );
 
 /** "24:59" — the resting notch has room for minutes and seconds, nothing more. */
 const mmss = (s: number) =>
@@ -78,8 +90,14 @@ export default function App() {
   const [place, setPlace] = useState<Placement>({ side: "top", flush: true });
   const [clock, setClock] = useState("");
   const [focus, setFocus] = useState<FocusState | null>(null);
+  // `open` keeps the panel mounted; `closing` plays its fold-back first.
+  const [closing, setClosing] = useState(false);
+  // Hides the notch for the two frames around a window grow, so the resize has
+  // nothing stale to show.
+  const [prep, setPrep] = useState(false);
 
   const leaveTimer = useRef<number | null>(null);
+  const closeTimer = useRef<number | null>(null);
   const hoverTimer = useRef<number | null>(null);
   const dragging = useRef(false);
   const openRef = useRef(false);
@@ -161,6 +179,18 @@ export default function App() {
   const expand = useCallback(async () => {
     if (openRef.current) return;
     openRef.current = true;
+    // Re-entering during the fold-back cancels it; the panel just replays its
+    // opening, which is what the eye expects from "you came back".
+    if (closeTimer.current) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setClosing(false);
+    // Blank the pill before the window grows: WebView2 paints one frame of the
+    // old surface at the new window's top-left, which showed the pill 228px to
+    // the left for a frame — the "it jumps left before opening" flick.
+    setPrep(true);
+    await nextPaint();
     try {
       await api.setExpanded(true);
       // A collapse that landed while we were waiting wins.
@@ -169,22 +199,42 @@ export default function App() {
       setOpen(true);
     } catch {
       openRef.current = false;
+      setClosing(false);
+      setOpen(false);
+    } finally {
+      setPrep(false);
     }
   }, []);
 
-  // No fade-out phase: the panel goes, the window shrinks, the notch animates in.
-  // Waiting 150ms for a fade was most of what made closing feel slow.
-  const collapse = useCallback(() => {
+  // The local half of closing: the panel folds back into the notch. Split out
+  // because a close started by Rust (hotkey, tray) must not echo `setExpanded`
+  // back — a second close looks like a no-op to Rust and shrinks the window on
+  // the spot, cutting the fold off.
+  const fold = useCallback(() => {
     if (!openRef.current) return;
     openRef.current = false;
     if (leaveTimer.current) {
       window.clearTimeout(leaveTimer.current);
       leaveTimer.current = null;
     }
-    setOpen(false);
-    setSettings(false);
-    void api.setExpanded(false);
+    setClosing(true);
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => {
+      closeTimer.current = null;
+      setClosing(false);
+      setOpen(false);
+    }, CLOSE_MS);
   }, []);
+
+  // Close in two steps: the panel folds back into the notch, then the window
+  // shrinks onto the pill that was underneath it all along. Both halves are
+  // invisible on their own, which is what makes the whole thing read as one
+  // smooth move instead of a panel vanishing and a notch popping in.
+  const collapse = useCallback(() => {
+    if (!openRef.current) return;
+    fold();
+    void api.setExpanded(false);
+  }, [fold]);
 
   const enter = () => {
     if (leaveTimer.current) {
@@ -215,9 +265,15 @@ export default function App() {
   // mousemove: landing on the notch while the window is still shrinking can
   // swallow the mouseenter, and any movement afterwards should recover it.
   const hoverStart = () => {
-    if (openRef.current || Date.now() < quietUntil.current || hoverTimer.current) return;
+    // A held drag owns the mouse until it settles: the OS move loop keeps
+    // delivering mousemove, and opening the panel mid-drag is the one thing that
+    // must never happen.
+    if (dragging.current || openRef.current || Date.now() < quietUntil.current || hoverTimer.current)
+      return;
     hoverTimer.current = window.setTimeout(() => {
       hoverTimer.current = null;
+      // The drag can start between arming this timer and it firing.
+      if (dragging.current) return;
       void expand();
     }, 240);
   };
@@ -228,15 +284,21 @@ export default function App() {
     listen<{ expanded: boolean; side: Placement["side"]; flush: boolean }>(
       "expanded-changed",
       (e) => {
-        openRef.current = e.payload.expanded;
         setPlace({ side: e.payload.side, flush: e.payload.flush });
-        setOpen(e.payload.expanded);
+        if (e.payload.expanded) {
+          openRef.current = true;
+          setClosing(false);
+          setOpen(true);
+        } else if (openRef.current) {
+          // A close we did not start (hotkey, tray): play the same fold-back.
+          fold();
+        }
       }
     )
       .then((f) => (un = f))
       .catch(() => {});
     return () => un?.();
-  }, []);
+  }, [fold]);
 
   // Rust ends a phase on its own tick, so the notch hears about it immediately
   // instead of waiting for the next poll with a stale countdown.
@@ -292,11 +354,13 @@ export default function App() {
     };
   }, [collapse]);
 
-  /** One drag path for the notch and the header: the OS move loop, then settle. */
+  /** One drag path for the notch and the header: the OS move loop, then settle.
+   *  `dragging` is set by the mousedown handlers before they get here and is
+   *  only cleared once the drop has settled, so nothing can open the panel
+   *  while the mouse is held or while the notch is snapping back. */
   const dragWindow = async () => {
     const win = getCurrentWindow();
     const before = await win.outerPosition().catch(() => null);
-    dragging.current = true;
     try {
       // Rust waits for the mouse to come up. `startDragging()` alone returns
       // before the OS move loop runs, so the "after" read below would be the
@@ -306,22 +370,27 @@ export default function App() {
       dragging.current = false;
       return;
     }
-    dragging.current = false;
     const after = await win.outerPosition().catch(() => null);
     // A 2px dead zone: a click with a shaky hand is still a click.
     const moved =
       !!before && !!after && (Math.abs(after.x - before.x) > 2 || Math.abs(after.y - before.y) > 2);
     if (!moved) {
+      dragging.current = false;
       if (!openRef.current) void expand();
       return;
     }
     quietUntil.current = Date.now() + QUIET;
-    setPlace(await api.anchorAfterDrag());
+    try {
+      setPlace(await api.anchorAfterDrag());
+    } finally {
+      dragging.current = false;
+    }
   };
 
   const drag = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     hoverStop();
+    dragging.current = true;
     void dragWindow();
   };
 
@@ -332,6 +401,7 @@ export default function App() {
       window.clearTimeout(leaveTimer.current);
       leaveTimer.current = null;
     }
+    dragging.current = true;
     void dragWindow();
   };
 
@@ -359,10 +429,15 @@ export default function App() {
   const sideClass = place.side === "top" ? "" : ` side-${place.side}`;
 
   return (
-    <div className="shell">
-      {open && (
+    <div
+      className="shell"
+      data-notch={left > 0 ? "pill" : notch}
+      data-prep={prep || undefined}
+      data-open={(open || closing) || undefined}
+    >
+      {(open || closing) && (
         <div
-          className={`panel${place.flush ? " flush" : ""}${sideClass}`}
+          className={`panel${place.flush ? " flush" : ""}${sideClass}${closing ? " closing" : ""}`}
           onMouseEnter={enter}
           onMouseLeave={leave}
         >
@@ -449,45 +524,45 @@ export default function App() {
         </div>
       )}
 
-      {/* The notch only exists while collapsed: during the shrink the window is
-          still panel-sized, so drawing it early would make it jump. */}
-      {!open && (
-        <div className="notch-wrap">
-          <div
-            // A countdown takes the pill's plain shape: the orb's 50% radius on a
-            // 104 × 24 window is an ellipse, which reads as a broken circle.
-            className={`notch ${left > 0 ? "" : `notch-${notch}`}${
-              place.flush ? " flush" : " floating"
-            }${place.side === "top" ? "" : ` at-${place.side}`}`}
-            onMouseDown={notchDown}
-            onMouseEnter={hoverStart}
-            onMouseMove={hoverStart}
-            onMouseLeave={hoverStop}
-            title="LemeManage"
-          >
-            {left > 0 ? (
-              <span className="notch-timer">{mmss(left)}</span>
-            ) : notch === "time" ? (
-              <span className="notch-time">{clock}</span>
-            ) : notch === "orb" ? (
-              // The circle is the window itself; the core is painted in CSS.
-              null
-            ) : notch === "halo" ? (
-              <span className="notch-halo" />
-            ) : notch === "wave" ? (
-              <span className="notch-wave">
-                <i />
-                <i />
-                <i />
-                <i />
-              </span>
-            ) : (
-              <span className="notch-pip" />
-            )}
-            <span className="notch-ring" aria-hidden />
-          </div>
+      {/* The notch never unmounts. It is what the panel opens out of and folds
+          back into, and keeping it in place means the window can be resized
+          afterwards without the pill moving a pixel. While the panel is up it
+          simply sits underneath it. */}
+      <div className="notch-wrap">
+        <div
+          // A countdown takes the pill's plain shape: the orb's 50% radius on a
+          // 104 × 24 window is an ellipse, which reads as a broken circle.
+          className={`notch ${left > 0 ? "" : `notch-${notch}`}${
+            place.flush ? " flush" : " floating"
+          }${place.side === "top" ? "" : ` at-${place.side}`}`}
+          onMouseDown={notchDown}
+          onMouseEnter={hoverStart}
+          onMouseMove={hoverStart}
+          onMouseLeave={hoverStop}
+          title="LemeManage"
+        >
+          {left > 0 ? (
+            <span className="notch-timer">{mmss(left)}</span>
+          ) : notch === "time" ? (
+            <span className="notch-time">{clock}</span>
+          ) : notch === "orb" ? (
+            // The circle is the window itself; the core is painted in CSS.
+            null
+          ) : notch === "halo" ? (
+            <span className="notch-halo" />
+          ) : notch === "wave" ? (
+            <span className="notch-wave">
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+          ) : (
+            <span className="notch-pip" />
+          )}
+          <span className="notch-ring" aria-hidden />
         </div>
-      )}
+      </div>
     </div>
   );
 }

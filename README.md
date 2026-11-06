@@ -21,36 +21,39 @@ hydration reminders, calendar, analytics, revenue, the pet — is deliberately a
 
 ## The interaction
 
-- **Resting:** a 104 × 24 px notch, flush with the edge it is parked on, with the
-  corners that are still on screen rounded. It reads as a notch, not a scrollbar
-  or a nav bar.
-- **Hover it for a moment, or click it:** expands to 560 × 360, growing down from
-  the notch. Leaving tucks it back in.
-- **Drag the notch, or the panel's top bar:** moves it anywhere.
+- **Resting:** a 104 × 24 px pill, flush with the edge it is parked on, with the
+  corners that are still on screen rounded and no rim — the fill alone separates
+  it from the wallpaper. It reads as a notch, not a scrollbar or a nav bar.
+- **Hover it for a moment, or click it:** the pill unfolds into a 560 × 360 panel.
+  Leaving tucks it back into the same pill.
+- **Drag the notch, or the panel's top bar:** moves it anywhere. Nothing opens
+  while the button is held, and a click with a shaky hand is still a click.
 - **Let go:** the nearest of the four screen edges wins, measured by perpendicular
   distance, and the notch glides there with an ease-out settle rather than
   snapping. The coordinate *along* that edge is kept exactly where you let go —
   drop two thirds down the left side and it parks two thirds down, not in a
   corner. Top and bottom drops keep their x, side drops keep their y. Nothing
   stays floating, so a drop always ends somewhere that reads as deliberate.
-  A bottom drop hangs the pill upside down and opens the panel upward; a side drop
-  stands it up as a vertical rail and the dock turns into a rail too.
+  The pill keeps its shape and proportions on every edge; a bottom drop only
+  turns the rounding around, and a side drop opens the panel sideways and turns
+  the dock into a rail.
 - **`Ctrl + Shift + Space`:** opens from anywhere, and closes again.
 - **`Esc`:** closes.
 - **Tray icon:** show, hide, quit.
 
-Closing is immediate: the panel unmounts and the window shrinks in the same
-frame, then the notch fades in. There is no fade-out phase to wait through.
-Opening is a wipe, not a fade: the panel's content is clipped in from the edge the
-notch hangs on over 280 ms with an ease-out curve, so every label is at full
-opacity the whole way instead of arriving out of a grey ghost.
+Closing is one move, not two: the panel folds back into the notch's own
+rectangle over 170 ms, and the window shrinks onto the pill that was underneath
+it all along. Opening runs the same shape backwards — the panel's content is
+clipped out of the notch's rectangle over 280 ms with an ease-out curve, so
+every label is at full opacity the whole way instead of arriving out of a grey
+ghost.
 
 While a pomodoro is running the resting notch shows `mm:ss` in the accent colour,
 whatever skin is selected — the countdown is the one thing worth reading without
 opening anything. Clicking expands as usual; the panel has the full timer.
 
 The window is resized to match its contents, so collapsed it occupies 104 × 24 px
-(30 × 30 for the round orb, 104 × 24 while that orb is showing a countdown) and
+(30 × 30 for the ring, 104 × 24 while the ring is showing a countdown) and
 does not block anything behind it. The notch itself is a fixed box pinned to its
 edge rather than a percentage of the window: Rust resizes the window before React
 can unmount the notch, and a percentage-sized pill stretched into an oval for the
@@ -67,15 +70,18 @@ never sits next to something unrelated.
 - **Accent** — Amber, Blue, Mint, Rose, Violet, Coral, Cyan, Lime.
 - **Notch** — six skins, each shown as a live miniature in the picker:
   - **Dot** — a 5 px accent dot that stretches into a bar on hover.
-  - **Orb** — a 30 × 30 pearl: a soft accent light along the bottom inner edge
-    and one lit dot in the middle that swells under the cursor. The window itself
-    is the circle, so it is round on every edge; every layer is concentric and the
-    entrance scales evenly, which is what keeps it from reading as an egg.
+  - **Ring** — a 30 × 30 disc with a lit rim: a comet arc and a small dot
+    circulate around the track at different speeds and in opposite directions.
+    The window itself is the circle, so it is round on every edge. Both movers are
+    a fixed gradient rotated by a transform, so the compositor moves them without
+    repainting; the loops pause while the panel is open and are off under reduced
+    motion. It is the one skin that keeps moving at rest — the others are static.
   - **Halo** — a thin accent ring with a lit core.
   - **Wave** — four bars that grow into an equaliser on hover.
   - **Bar** — a 34 px hairline that widens on hover.
-  - **Time** — the time, tabular figures, vertical on a side rail.
-- **Dock** — Icons, Labels, or Minimal (hairline ring only).
+  - **Time** — the time, tabular figures.
+- **Dock** — Icons, Labels, or Segmented (one capsule, the current module a filled
+  segment).
 - **Frosted glass** — translucent panel instead of solid.
 
 ## Clipboard
@@ -228,26 +234,30 @@ on `<html>`, so switching is a single `data-theme` / `data-accent` / `data-dock`
 attribute write.
 
 ```
-dark    bg #0B0B0E   surface #131317   text #F2F2F5
-ink     bg #0A0F18   surface #101725   text #E9EEF8
-slate   bg #191B20   surface #202329   text #F1F2F5
-sand    bg #17130F   surface #1E1913   text #F6EFE6
-light   bg #FBFBFD   surface #F2F2F6   text #17171C
-paper   bg #F5F2EC   surface #EBE7DF   text #221F1A
-accents amber #F0B429  blue #4C9AFF  mint #3DDC97  rose #FF6B8B
-        violet #A78BFA coral #FF7A59 cyan #38D6E0  lime #A3E635
+dark    bg #0B0B0E   surface #16161B   surface-2 #202027
+ink     bg #0A0F18   surface #131B2B   surface-2 #1C2637
+slate   bg #191B20   surface #24272E   surface-2 #2F333B
+sand    bg #17130F   surface #221C15   surface-2 #2D251C
+light   bg #FBFBFD   surface #F2F2F6   surface-2 #FFFFFF
+paper   bg #F5F2EC   surface #EBE7DF   surface-2 #FBF9F5
+text #F2F2F5  dim #A6A6B2  faint #777783   (light: #17171C / #54545F / #7F7F8A)
+accents amber #F0B429  blue #5AA7FF  mint #2FE6A1  rose #FF5F86
+        violet #B18CFF coral #FF7A52 cyan #2FDDE8  lime #B0F03A
 ```
 
 Type: Segoe UI Variable. Hero numerals 26–34 px at weight 600 with tabular
 figures; micro-labels 9.5 px uppercase at 0.1em tracking.
 
-Motion: one spring curve, `cubic-bezier(0.16, 1, 0.3, 1)`. The window resizes in
-a single frame and the panel animates inside it — tweening the window size
-reflows the whole tree every frame and looks like a stutter. Nothing loops while
-the notch rests: an infinite keyframe keeps the compositor awake all day.
-Measured on this machine, an always-on 60 fps animation in the 30 px orb window
-cost 13–17 % of one core, so the fog is `animation-play-state: paused` and only
-runs while the cursor is on it — resting cost is 0.00 % of a core.
+Motion: one spring curve, `cubic-bezier(0.16, 1, 0.3, 1)`. The panel's shape, not
+the window, animates: the window resizes in a single frame and a `clip-path` runs
+from the notch's rectangle to the full panel, because tweening the window size
+reflows the whole tree every frame and looks like a stutter. Every skin is
+static at rest except Ring, whose two movers are transform-only on a 30 × 30
+layer; it pauses while the panel is open, and nothing animates at all under
+reduced motion. A looping paint (a blurred shadow, a gradient that changes per
+frame) is what costs a core — measured on this machine, an always-on 60 fps
+repaint in the 30 px window took 13–17 % of one core, so nothing here repaints
+while it moves.
 
 ## Deliberately not built
 

@@ -2,18 +2,22 @@
 :root {
   --bg: #0b0b0e;
   --bg-rgb: 11, 11, 14;
-  --surface: #131317;
-  --surface-2: #1b1b21;
-  --line: rgba(255, 255, 255, 0.065);
-  --line-2: rgba(255, 255, 255, 0.13);
+  --surface: #16161b;
+  --surface-2: #202027;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.16);
+  /* The resting notch's fill. It has no rim any more, so this is the only thing
+     separating the pill from an unknown wallpaper: lifted off the panel surface
+     on dark themes, a touch deeper than white on the light ones. */
+  --notch-fill: #22222a;
   --text: #f2f2f5;
-  --dim: #9a9aa4;
-  --faint: #5c5c66;
+  --dim: #a6a6b2;
+  --faint: #777783;
   --notch: #0b0b0e;
-  --notch-ink: #9a9aa4;
+  --notch-ink: #a6a6b2;
   /* One knob per job, so a new theme only has to set these. */
   --hover: rgba(255, 255, 255, 0.055);
-  --track: rgba(255, 255, 255, 0.09);
+  --track: rgba(255, 255, 255, 0.1);
   --grid: rgba(255, 255, 255, 0.05);
   --ink-2: #e6e6ea;
   --ink-3: #55555c;
@@ -21,7 +25,7 @@
   --accent: #f0b429;
   --accent-rgb: 240, 180, 41;
   --accent-ink: #191207;
-  --accent-dim: rgba(var(--accent-rgb), 0.13);
+  --accent-dim: rgba(var(--accent-rgb), 0.18);
   --r: 12px;
   --rail: 56px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -31,13 +35,14 @@
 [data-theme="ink"] {
   --bg: #0a0f18;
   --bg-rgb: 10, 15, 24;
-  --surface: #101725;
-  --surface-2: #17202f;
+  --surface: #131b2b;
+  --surface-2: #1c2637;
+  --notch-fill: #1c2637;
   --text: #e9eef8;
-  --dim: #8a94a6;
-  --faint: #4d5768;
+  --dim: #97a2b5;
+  --faint: #69748a;
   --notch: #0a0f18;
-  --notch-ink: #8a94a6;
+  --notch-ink: #97a2b5;
   --ink-2: #dfe6f2;
   --ink-3: #4a5468;
 }
@@ -45,14 +50,15 @@
 [data-theme="slate"] {
   --bg: #191b20;
   --bg-rgb: 25, 27, 32;
-  --surface: #202329;
-  --surface-2: #292d34;
+  --surface: #24272e;
+  --surface-2: #2f333b;
+  --notch-fill: #30343c;
   --text: #f1f2f5;
-  --dim: #a2a6b0;
-  --faint: #666b76;
+  --dim: #adb1bb;
+  --faint: #757b87;
   --notch: #191b20;
-  --notch-ink: #a2a6b0;
-  --line: rgba(255, 255, 255, 0.075);
+  --notch-ink: #adb1bb;
+  --line: rgba(255, 255, 255, 0.09);
   --ink-2: #e6e8ec;
   --ink-3: #5c616b;
 }
@@ -60,14 +66,15 @@
 [data-theme="sand"] {
   --bg: #17130f;
   --bg-rgb: 23, 19, 15;
-  --surface: #1e1913;
-  --surface-2: #272019;
+  --surface: #221c15;
+  --surface-2: #2d251c;
+  --notch-fill: #2e261d;
   --text: #f6efe6;
-  --dim: #a79b8c;
-  --faint: #6b6055;
+  --dim: #b3a695;
+  --faint: #7b6e60;
   --notch: #17130f;
-  --notch-ink: #a79b8c;
-  --line: rgba(255, 240, 220, 0.07);
+  --notch-ink: #b3a695;
+  --line: rgba(255, 240, 220, 0.085);
   --ink-2: #efe6d9;
   --ink-3: #5f5548;
 }
@@ -77,15 +84,16 @@
   --bg-rgb: 251, 251, 253;
   --surface: #f2f2f6;
   --surface-2: #ffffff;
-  --line: rgba(0, 0, 0, 0.075);
-  --line-2: rgba(0, 0, 0, 0.15);
+  --line: rgba(0, 0, 0, 0.085);
+  --line-2: rgba(0, 0, 0, 0.16);
+  --notch-fill: #ececf1;
   --text: #17171c;
-  --dim: #5f5f6b;
-  --faint: #9b9ba7;
+  --dim: #54545f;
+  --faint: #7f7f8a;
   --notch: #ffffff;
-  --notch-ink: #5f5f6b;
+  --notch-ink: #54545f;
   --hover: rgba(0, 0, 0, 0.05);
-  --track: rgba(0, 0, 0, 0.09);
+  --track: rgba(0, 0, 0, 0.1);
   --grid: rgba(0, 0, 0, 0.045);
   --ink-2: #2a2a33;
   --ink-3: #b9b9c4;
@@ -97,13 +105,14 @@
   --bg-rgb: 245, 242, 236;
   --surface: #ebe7df;
   --surface-2: #fbf9f5;
-  --line: rgba(40, 30, 15, 0.085);
-  --line-2: rgba(40, 30, 15, 0.17);
+  --line: rgba(40, 30, 15, 0.095);
+  --line-2: rgba(40, 30, 15, 0.18);
+  --notch-fill: #ece7dd;
   --text: #221f1a;
-  --dim: #6b6459;
-  --faint: #a39a8c;
+  --dim: #60594e;
+  --faint: #857c6d;
   --notch: #f5f2ec;
-  --notch-ink: #6b6459;
+  --notch-ink: #60594e;
   --hover: rgba(60, 45, 20, 0.055);
   --track: rgba(60, 45, 20, 0.1);
   --grid: rgba(60, 45, 20, 0.05);
@@ -113,44 +122,44 @@
 }
 
 [data-accent="blue"] {
-  --accent: #4c9aff;
-  --accent-rgb: 76, 154, 255;
+  --accent: #5aa7ff;
+  --accent-rgb: 90, 167, 255;
   --accent-ink: #04101f;
 }
 
 [data-accent="mint"] {
-  --accent: #3ddc97;
-  --accent-rgb: 61, 220, 151;
+  --accent: #2fe6a1;
+  --accent-rgb: 47, 230, 161;
   --accent-ink: #04170f;
 }
 
 [data-accent="rose"] {
-  --accent: #ff6b8b;
-  --accent-rgb: 255, 107, 139;
+  --accent: #ff5f86;
+  --accent-rgb: 255, 95, 134;
   --accent-ink: #20060c;
 }
 
 [data-accent="violet"] {
-  --accent: #a78bfa;
-  --accent-rgb: 167, 139, 250;
+  --accent: #b18cff;
+  --accent-rgb: 177, 140, 255;
   --accent-ink: #120a24;
 }
 
 [data-accent="coral"] {
-  --accent: #ff7a59;
-  --accent-rgb: 255, 122, 89;
+  --accent: #ff7a52;
+  --accent-rgb: 255, 122, 82;
   --accent-ink: #200a04;
 }
 
 [data-accent="cyan"] {
-  --accent: #38d6e0;
-  --accent-rgb: 56, 214, 224;
+  --accent: #2fdde8;
+  --accent-rgb: 47, 221, 232;
   --accent-ink: #041619;
 }
 
 [data-accent="lime"] {
-  --accent: #a3e635;
-  --accent-rgb: 163, 230, 53;
+  --accent: #b0f03a;
+  --accent-rgb: 176, 240, 58;
   --accent-ink: #131a04;
 }
 
@@ -202,6 +211,15 @@ button:active {
 .shell {
   position: relative;
   height: 100%;
+  /* The rectangle the panel opens out of. The pill is the default; the orb
+     overrides it to its own circle so the pearl is what unfolds. */
+  --ns-w: 104px;
+  --ns-h: 24px;
+}
+
+.shell[data-notch="orb"] {
+  --ns-w: 30px;
+  --ns-h: 30px;
 }
 
 /* A theme/accent swap repaints every surface. Animating 30 of them at once   reads as a stutter, so transitions are off for the frame it lands on. */
@@ -224,6 +242,13 @@ button:active {
   z-index: 1;
 }
 
+/* Between the hover and the window growing the pill is off-screen: the webview
+   is about to repaint the old surface into a much wider window, and anything
+   drawn here would flash at the wrong edge. */
+.shell[data-prep] .notch-wrap {
+  opacity: 0;
+}
+
 .notch {
   --nw: 104px;
   --nh: 24px;
@@ -236,14 +261,13 @@ button:active {
   margin: 0 auto;
   display: grid;
   place-items: center;
-  background: var(--notch);
-  border: 1px solid var(--line);
-  border-top: none;
+  /* Solid and rimless: the fill is the whole object, so it is the one token a
+     theme has to get right against an unknown wallpaper. */
+  background: var(--notch-fill);
   border-radius: 0 0 12px 12px;
   cursor: grab;
-  /* 40ms of delay hides it while the window shrinks back to this size. */
-  animation: notchIn 200ms var(--ease) 40ms both;
-  transition: border-radius 0.18s, border-color 0.18s, background 0.18s, box-shadow 0.22s;
+  animation: notchIn 200ms var(--ease) both;
+  transition: border-radius 0.18s, background 0.18s;
 }
 
 @keyframes notchIn {
@@ -258,27 +282,23 @@ button:active {
 }
 
 .notch.floating {
-  border-top: 1px solid var(--line);
   border-radius: 12px;
 }
 
-/* Attached to an edge: only the corners that are still on screen stay round. */
-.notch.flush.at-left {
-  border-left-color: transparent;
-  border-radius: 0 0 12px 0;
+/* Same pill on every edge, only the corners facing away from the screen edge
+   are round — so a drop on the left keeps the shape it had on top. The ring is
+   excluded: it is round everywhere, and these rules outrank a plain
+   `.notch.notch-orb`. */
+.notch.flush.at-left:not(.notch-orb) {
+  border-radius: 0 12px 12px 0;
 }
 
-.notch.flush.at-right {
-  border-right-color: transparent;
-  border-radius: 0 0 0 12px;
+.notch.flush.at-right:not(.notch-orb) {
+  border-radius: 12px 0 0 12px;
 }
 
 .notch:active {
   cursor: grabbing;
-}
-
-.notch:hover {
-  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.22);
 }
 
 .notch-pip {
@@ -300,7 +320,7 @@ button:active {
   width: 34px;
   height: 3px;
   border-radius: 2px;
-  opacity: 0.65;
+  opacity: 0.85;
 }
 
 .notch-bar:hover .notch-pip {
@@ -329,102 +349,32 @@ button:active {
 .notch.at-bottom {
   top: auto;
   bottom: 0;
-  border-top: 1px solid var(--line);
-  border-bottom: none;
   border-radius: 12px 12px 0 0;
   transform-origin: 50% 100%;
-  animation-name: notchIn;
 }
 
-/* Docked to a side edge the notch stands up: 24 wide, 104 tall, centred on the   edge point it was dropped at. */
+/* Docked to a side edge it is the same pill lying against that edge: the window
+   is 104 × 24 there too, so the default centring already fills it. */
 .notch.at-left {
-  --nw: 24px;
-  --nh: 104px;
-  left: 0;
-  right: auto;
-  top: 0;
-  bottom: 0;
-  margin: auto 0;
-  border-top: 1px solid var(--line);
-  border-left: none;
-  border-radius: 0 12px 12px 0;
-  transform-origin: 0 0;
-  animation-name: notchInSide;
+  transform-origin: 0 50%;
 }
 
 .notch.at-right {
-  --nw: 24px;
-  --nh: 104px;
-  right: 0;
-  left: auto;
-  top: 0;
-  bottom: 0;
-  margin: auto 0;
-  border-top: 1px solid var(--line);
-  border-right: none;
-  border-radius: 12px 0 0 12px;
-  transform-origin: 100% 0;
-  animation-name: notchInSide;
+  transform-origin: 100% 50%;
 }
 
-@keyframes notchInSide {
-  from {
-    opacity: 0;
-    transform: scale(0.5, 0.78);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Same three notch styles, rotated: the pip grows downward instead of across. */
-.notch.at-left .notch-pip,.notch.at-right .notch-pip {
-  width: 5px;
-  height: 5px;
-}
-
-.notch.at-left:hover .notch-pip,.notch.at-right:hover .notch-pip {
-  width: 5px;
-  height: 26px;
-  border-radius: 3px;
-}
-
-.notch-bar.at-left .notch-pip,.notch-bar.at-right .notch-pip {
-  width: 3px;
-  height: 34px;
-}
-
-.notch-bar.at-left:hover .notch-pip,.notch-bar.at-right:hover .notch-pip {
-  width: 3px;
-  height: 46px;
-}
-
-.notch.at-left .notch-time,.notch.at-right .notch-time,
-.notch.at-left .notch-timer,.notch.at-right .notch-timer {
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  letter-spacing: 0.04em;
-}
-
-/* ---- orb: a pearl with one lit core (its window is 30 × 30) ---- */
-/* Placed after the at-* rules on purpose: the orb is round on every edge. */
-/* Every layer here is concentric. An off-centre blob at 30px reads as a lopsided   egg, and a squashed entrance reads as a broken circle, so the entrance scales   evenly and the light sits in the middle. */
+/* ---- ring: a lit rim with a sweeping arc and an orbiting dot (30 × 30) ---- */
+/* Placed after the at-* rules on purpose: the ring is round on every edge. */
+/* The window is exactly the circle, so anything painted outside it is lost: the
+   track is an inset shadow, never a border, and both movers stay inside. */
 .notch.notch-orb {
   --nw: 30px;
   --nh: 30px;
-  border: 1px solid var(--line-2);
   border-radius: 50%;
-  background: radial-gradient(circle at 34% 26%, var(--surface-2), var(--notch) 62%);
+  background: var(--notch-fill);
+  box-shadow: inset 0 0 0 2px var(--line-2);
   overflow: hidden;
-  /* The window is exactly the circle, so an outer box-shadow gets clipped into a     visible square. The light stays inside. */
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.9),
-    inset 0 -6px 9px -5px rgba(var(--accent-rgb), 0.75);
   animation-name: orbIn;
-  transition:
-    border-color 0.18s,
-    box-shadow 0.22s var(--ease);
 }
 
 @keyframes orbIn {
@@ -438,32 +388,63 @@ button:active {
   }
 }
 
-.notch.notch-orb:hover {
-  border-color: rgba(var(--accent-rgb), 0.5);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.95),
-    inset 0 -6px 9px -4px rgba(var(--accent-rgb), 0.95);
-}
-
-/* The core is painted, not laid out: inset 0 with an auto margin centres a fixed   box in any parent, and it is the only thing that moves on hover, so the orb   stays a circle at every frame. */
+.notch.notch-orb::before,
 .notch.notch-orb::after {
   content: "";
   position: absolute;
   inset: 0;
-  width: 7px;
-  height: 7px;
-  margin: auto;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 9px 1px rgba(var(--accent-rgb), 0.7);
-  transition:
-    transform 0.3s var(--ease),
-    box-shadow 0.3s var(--ease);
+  pointer-events: none;
 }
 
-.notch.notch-orb:hover::after {
-  transform: scale(1.45);
-  box-shadow: 0 0 13px 3px rgba(var(--accent-rgb), 0.9);
+/* A comet arc along the rim. The gradient itself never changes — rotating the
+   layer moves it, which the compositor does without repainting. */
+.notch.notch-orb::before {
+  background: conic-gradient(
+    rgba(var(--accent-rgb), 0) 0deg,
+    rgba(var(--accent-rgb), 0.25) 70deg,
+    var(--accent) 120deg,
+    var(--accent) 128deg,
+    rgba(var(--accent-rgb), 0) 132deg,
+    rgba(var(--accent-rgb), 0) 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: ringSweep 1.8s linear infinite;
+}
+
+/* The dot is painted on the rim once; rotating its layer orbits it the other way,
+   so the two movers never line up. */
+.notch.notch-orb::after {
+  background: radial-gradient(circle at 50% 2px, var(--accent) 0 1.5px, transparent 1.6px);
+  animation: ringOrbit 2.8s linear infinite reverse;
+}
+
+@keyframes ringSweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ringOrbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The notch stays mounted under the open panel, so its two loops would keep the
+   compositor busy for a pill nobody can see. */
+.shell[data-open] .notch.notch-orb::before,
+.shell[data-open] .notch.notch-orb::after {
+  animation-play-state: paused;
+}
+
+/* The global 1 ms override would make these loop at 60 turns a second. */
+@media (prefers-reduced-motion: reduce) {
+  .notch.notch-orb::before,
+  .notch.notch-orb::after {
+    animation: none;
+  }
 }
 
 /* ---- halo: a thin ring with a lit core ---- */
@@ -473,7 +454,7 @@ button:active {
   height: 14px;
   border-radius: 50%;
   border: 1.5px solid var(--accent);
-  opacity: 0.75;
+  opacity: 0.9;
   transition: opacity 0.2s, box-shadow 0.22s var(--ease), transform 0.22s var(--ease);
 }
 
@@ -500,10 +481,10 @@ button:active {
 }
 
 .notch-wave i {
-  width: 2.5px;
+  width: 3px;
   border-radius: 2px;
   background: var(--accent);
-  opacity: 0.7;
+  opacity: 1;
   transition: height 0.2s var(--ease), opacity 0.2s;
 }
 
@@ -543,11 +524,6 @@ button:active {
   height: 8px;
 }
 
-/* On a rail the wave turns with the pill. */
-.notch.at-left .notch-wave,.notch.at-right .notch-wave {
-  transform: rotate(90deg);
-}
-
 /* ============ panel ============ */
 .panel {
   position: absolute;
@@ -566,6 +542,17 @@ button:active {
   transform-origin: 50% 0;
   animation: panelIn 280ms cubic-bezier(0.2, 0.72, 0.24, 1) both;
   z-index: 2;
+  /* The fold has to end on the notch's exact shape, or the last frames show the
+     panel's rounded top corners where the notch's are square. */
+  --ns-r: 0 0 12px 12px;
+}
+
+.panel:not(.flush) {
+  --ns-r: 12px;
+}
+
+.shell[data-notch="orb"] .panel {
+  --ns-r: 50%;
 }
 
 /* Docked to a side edge: the dock becomes a vertical rail and the panel keeps   rounding only on the corner that is still on screen. */
@@ -575,6 +562,8 @@ button:active {
   grid-template-areas:    "dock hdr"    "dock body";
   transform-origin: 0 0;
   animation-name: panelInLeft;
+  /* The pill against this edge: flat on the outside, round inside. */
+  --ns-r: 0 12px 12px 0;
 }
 
 .panel.side-right {
@@ -583,6 +572,7 @@ button:active {
   grid-template-areas:    "hdr dock"    "body dock";
   transform-origin: 100% 0;
   animation-name: panelInRight;
+  --ns-r: 12px 0 0 12px;
 }
 
 .panel.flush:not(.side-left):not(.side-right):not(.side-bottom) {
@@ -596,6 +586,7 @@ button:active {
   animation-name: panelInUp;
   border-bottom-color: transparent;
   border-radius: var(--r) var(--r) 0 0;
+  --ns-r: 12px 12px 0 0;
 }
 
 .panel.side-left.flush {
@@ -610,48 +601,133 @@ button:active {
   border-radius: 0 0 0 var(--r);
 }
 
+/* Folding back into the notch. The notch is mounted underneath the whole time,
+   so the last frame of this is already the resting pill and the window can be
+   shrunk afterwards without a jump. */
+.panel.closing {
+  animation: panelOut 180ms cubic-bezier(0.4, 0, 0.6, 1) both;
+  pointer-events: none;
+}
+
+.panel.closing.side-left {
+  animation-name: panelOutLeft;
+}
+
+.panel.closing.side-right {
+  animation-name: panelOutRight;
+}
+
+.panel.closing.side-bottom {
+  animation-name: panelOutUp;
+}
+
 [data-glass="on"] .panel {
   background-color: rgba(var(--bg-rgb), 0.76);
   backdrop-filter: blur(30px) saturate(1.5);
   -webkit-backdrop-filter: blur(30px) saturate(1.5);
 }
 
-/* The panel unfurls from the edge the notch hangs on. A clip wipe keeps every   glyph at full opacity the whole way; fading the whole panel read as a loading   state, which is what made opening feel unfinished. */
+/* The panel grows out of the resting notch: the clip starts on the notch's own
+   rectangle (pill or orb, set by `--ns-*` from the shell) and opens to the whole
+   panel. Content is never faded or scaled, so it arrives crisp; the shape alone
+   moves, which is what reads as "the notch opened" instead of "a window
+   appeared". Closing runs the same shape backwards. */
 @keyframes panelIn {
   from {
-    clip-path: inset(0 0 100% 0);
+    clip-path: inset(
+      0 calc(50% - var(--ns-w) / 2) calc(100% - var(--ns-h))
+        calc(50% - var(--ns-w) / 2) round var(--ns-r)
+    );
   }
   to {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(0 0 0 0 round var(--r));
   }
 }
 
-/* Bottom dock: the panel rises into place rather than dropping. */
+@keyframes panelOut {
+  from {
+    clip-path: inset(0 0 0 0 round var(--r));
+  }
+  to {
+    clip-path: inset(
+      0 calc(50% - var(--ns-w) / 2) calc(100% - var(--ns-h))
+        calc(50% - var(--ns-w) / 2) round var(--ns-r)
+    );
+  }
+}
+
+/* Bottom dock: the panel rises out of the notch hanging under it. */
 @keyframes panelInUp {
   from {
-    clip-path: inset(100% 0 0 0);
+    clip-path: inset(
+      calc(100% - var(--ns-h)) calc(50% - var(--ns-w) / 2) 0
+        calc(50% - var(--ns-w) / 2) round var(--ns-r)
+    );
   }
   to {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(0 0 0 0 round var(--r));
   }
 }
 
-/* Side panels open across their own edge instead of dropping. */
-@keyframes panelInLeft {
+@keyframes panelOutUp {
   from {
-    clip-path: inset(0 100% 0 0);
+    clip-path: inset(0 0 0 0 round var(--r));
   }
   to {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(
+      calc(100% - var(--ns-h)) calc(50% - var(--ns-w) / 2) 0
+        calc(50% - var(--ns-w) / 2) round var(--ns-r)
+    );
+  }
+}
+
+/* Side panels: out of the same horizontal pill, now lying against that edge and
+   centred on it. */
+@keyframes panelInLeft {
+  from {
+    clip-path: inset(
+      calc(50% - var(--ns-h) / 2) calc(100% - var(--ns-w)) calc(50% - var(--ns-h) / 2) 0
+        round var(--ns-r)
+    );
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--r));
+  }
+}
+
+@keyframes panelOutLeft {
+  from {
+    clip-path: inset(0 0 0 0 round var(--r));
+  }
+  to {
+    clip-path: inset(
+      calc(50% - var(--ns-h) / 2) calc(100% - var(--ns-w)) calc(50% - var(--ns-h) / 2) 0
+        round var(--ns-r)
+    );
   }
 }
 
 @keyframes panelInRight {
   from {
-    clip-path: inset(0 0 0 100%);
+    clip-path: inset(
+      calc(50% - var(--ns-h) / 2) 0 calc(50% - var(--ns-h) / 2) calc(100% - var(--ns-w))
+        round var(--ns-r)
+    );
   }
   to {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(0 0 0 0 round var(--r));
+  }
+}
+
+@keyframes panelOutRight {
+  from {
+    clip-path: inset(0 0 0 0 round var(--r));
+  }
+  to {
+    clip-path: inset(
+      calc(50% - var(--ns-h) / 2) 0 calc(50% - var(--ns-h) / 2) calc(100% - var(--ns-w))
+        round var(--ns-r)
+    );
   }
 }
 
@@ -783,7 +859,7 @@ button:active {
   top: 0;
   border-radius: 10px;
   background: var(--accent-dim);
-  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
   pointer-events: none;
   transition: transform 280ms var(--ease), width 280ms var(--ease),    height 280ms var(--ease), opacity 160ms;
 }
@@ -841,20 +917,54 @@ button:active {
   display: none;
 }
 
-/* Minimal: no fill, just a hairline ring around the current module. */
+/* Segmented: the five modules become one capsule, the current one a filled
+   segment. The sliding `dock-pill` is the fill, so its measurement code is
+   unchanged — only the colours and the capsule around the buttons move. */
+[data-dock="minimal"] .dock {
+  justify-self: center;
+  align-self: center;
+  width: fit-content;
+  height: auto;
+  gap: 0;
+  padding: 3px;
+  border: none;
+  background: var(--surface-2);
+  border-radius: 11px;
+}
+
 [data-dock="minimal"] .dock-btn {
-  width: 34px;
+  width: 40px;
   height: 30px;
   border-radius: 8px;
+  background: transparent;
+  color: var(--dim);
+}
+
+[data-dock="minimal"] .dock-btn:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+[data-dock="minimal"] .dock-btn.active {
+  color: var(--accent-ink);
+  background: transparent;
 }
 
 [data-dock="minimal"] .dock-pill {
-  background: transparent;
-  border-color: var(--line-2);
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
 }
 
 [data-dock="minimal"] .dock-dot {
   display: none;
+}
+
+/* On a rail the capsule hugs the column instead of the bar. */
+[data-dock="minimal"] .panel.side-left .dock,
+[data-dock="minimal"] .panel.side-right .dock {
+  padding: 3px;
+  border: none;
 }
 
 .dock-dot {
@@ -2185,8 +2295,9 @@ kbd {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  border: 1px solid var(--line-2);
-  background:    radial-gradient(circle, var(--accent) 0 2.2px, transparent 2.8px),    var(--notch);
+  background:
+    radial-gradient(circle, var(--notch-fill) 0 4.4px, transparent 4.5px),
+    conic-gradient(var(--accent) 0 90deg, var(--track) 90deg 360deg);
 }
 
 .nprev-halo::before {

@@ -16,6 +16,9 @@ const COL_H: f64 = 24.0;
 const ORB: f64 = 30.0;
 const EXP_W: f64 = 560.0;
 const EXP_H: f64 = 360.0;
+/// How long the panel takes to fold back into the notch before the window is
+/// allowed to shrink. Kept just over the 170 ms the CSS uses.
+const CLOSE_MS: u64 = 200;
 
 /// Bumped by every programmatic move. A settle animation that sees a new value
 /// knows something else owns the window now and stops instead of fighting it.
@@ -90,21 +93,21 @@ fn screen_size(window: &WebviewWindow) -> (f64, f64) {
     }
 }
 
-/// Window size for a state. The orb is round, so it ignores the bar/rail
-/// orientation and stays square on every edge — except while a session is
-/// counting down, when the notch has to be wide enough for the clock.
-fn size_for(expanded: bool, side: &str, notch: &str, timer: bool) -> (f64, f64) {
+/// Window size for a state. Every edge gets the same horizontal pill: a notch
+/// that changes proportions when you drop it on the left reads as a different
+/// object, and the panel would have to unfold from a shape that no longer
+/// exists. The ring is the one exception — it is square on every edge — and a
+/// running session overrides both with the pill, which has room for the clock.
+///
+/// `_side` is kept so callers read the same for every edge.
+fn size_for(expanded: bool, _side: &str, notch: &str, timer: bool) -> (f64, f64) {
     if expanded {
         return (EXP_W, EXP_H);
     }
     if notch == "orb" && !timer {
         return (ORB, ORB);
     }
-    match side {
-        // Docked to a side edge the notch stands up: 24 wide, 104 tall.
-        "left" | "right" => (COL_H, COL_W),
-        _ => (COL_W, COL_H),
-    }
+    (COL_W, COL_H)
 }
 
 /// Top-left corner for an edge and an anchor.
@@ -504,7 +507,39 @@ fn apply_expanded(app: &tauri::AppHandle, expanded: bool) {
         return;
     };
     let state = app.state::<AppState>();
-    state.expanded.store(expanded, Ordering::Relaxed);
+    let was = state.expanded.swap(expanded, Ordering::Relaxed);
+
+    if !expanded && was {
+        // Closing is the one move that waits. React folds the panel back into
+        // the notch over ~170 ms, and the notch has been sitting underneath the
+        // panel the whole time, so the window can only shrink once that has
+        // played — otherwise the panel is cut off by a window that is already a
+        // 104 × 24 pill.
+        let app = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(CLOSE_MS));
+            let state = app.state::<AppState>();
+            // Re-opened while we waited: this collapse lost, and resizing now
+            // would guillotine the panel that is already back.
+            if state.expanded.load(Ordering::Relaxed) {
+                return;
+            }
+            let Some(window) = app.get_webview_window("notch") else {
+                return;
+            };
+            let anchor = anchor_of(&state, &window);
+            let (side, notch) = {
+                let s = state.settings.lock();
+                (s.side.clone(), s.notch.clone())
+            };
+            layout(&window, false, anchor, &side, &notch, timer_resting(&state, false));
+            if let Ok(h) = window.hwnd() {
+                win::set_no_activate(h.0 as isize, true);
+            }
+        });
+        return;
+    }
+
     let anchor = anchor_of(&state, &window);
     let (side, notch) = {
         let s = state.settings.lock();
