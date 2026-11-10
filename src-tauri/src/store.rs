@@ -40,16 +40,22 @@ pub struct Settings {
     pub glass: bool,
     /// Collapsed skin: "dot" | "orb" | "bar" | "time"
     pub notch: String,
-    /// Dock shape: "icons" | "labels" | "minimal"
+    /// Dock shape: "icons" | "labels" | "minimal" | "floating"
     pub dock: String,
+    /// Whether hovering over the resting notch expands it (if false, click to open)
+    pub hover_open: bool,
+    /// Whether audio chimes and reminder rings play sound
+    pub sound: bool,
 }
 
-pub const THEMES: [&str; 6] = ["dark", "ink", "slate", "sand", "light", "paper"];
+pub const THEMES: [&str; 5] = [
+    "oled", "dark", "nord", "paper", "light",
+];
 pub const ACCENTS: [&str; 8] = [
     "amber", "blue", "mint", "rose", "violet", "coral", "cyan", "lime",
 ];
 pub const NOTCHES: [&str; 4] = ["dot", "orb", "bar", "time"];
-pub const DOCKS: [&str; 3] = ["icons", "labels", "minimal"];
+pub const DOCKS: [&str; 4] = ["icons", "labels", "minimal", "floating"];
 pub const SIDES: [&str; 4] = ["top", "bottom", "left", "right"];
 
 impl Default for Settings {
@@ -64,6 +70,8 @@ impl Default for Settings {
             glass: false,
             notch: "dot".into(),
             dock: "icons".into(),
+            hover_open: true,
+            sound: true,
         }
     }
 }
@@ -72,8 +80,10 @@ impl Settings {
     /// Older files can name a theme this build no longer ships ("midnight").
     /// Anything unrecognised falls back instead of leaving CSS variables unset.
     pub fn fix(&mut self) {
-        if self.theme == "midnight" {
-            self.theme = "ink".into();
+        if self.theme == "midnight" || self.theme == "ink" || self.theme == "slate" {
+            self.theme = "nord".into();
+        } else if self.theme == "sand" {
+            self.theme = "paper".into();
         }
         if !THEMES.contains(&self.theme.as_str()) {
             self.theme = "dark".into();
@@ -103,6 +113,20 @@ pub fn load_settings() -> Settings {
 pub struct ScreenData {
     /// "YYYY-MM-DD" -> exe name -> seconds
     pub days: BTreeMap<String, BTreeMap<String, u64>>,
+}
+
+impl ScreenData {
+    /// Bounded retention: keeps at most 60 days of historical records so
+    /// screentime.json never grows indefinitely.
+    pub fn prune(&mut self) {
+        while self.days.len() > 60 {
+            if let Some(oldest) = self.days.keys().next().cloned() {
+                self.days.remove(&oldest);
+            } else {
+                break;
+            }
+        }
+    }
 }
 
 /// A one-shot reminder: the text to show, when it is due, and whether it fired.
@@ -213,7 +237,10 @@ impl TimerState {
 }
 
 pub fn data_dir() -> PathBuf {
-    let root = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
+    let root = dirs::data_dir()
+        .or_else(|| std::env::var_os("LOCALAPPDATA").map(PathBuf::from))
+        .or_else(|| std::env::var_os("APPDATA").map(PathBuf::from))
+        .unwrap_or_else(|| PathBuf::from("."));
     let p = root.join("LemeManage");
     // One-time move from the pre-rename folder, so existing history is not orphaned.
     if !p.exists() {
@@ -303,6 +330,31 @@ mod tests {
     }
 
     #[test]
+    fn settings_validates_themes_and_docks() {
+        let mut s = Settings::default();
+        assert!(s.hover_open);
+        assert!(s.sound);
+
+        // Valid new themes and docks
+        s.theme = "oled".into();
+        s.dock = "floating".into();
+        s.fix();
+        assert_eq!(s.theme, "oled");
+        assert_eq!(s.dock, "floating");
+
+        s.theme = "nord".into();
+        s.fix();
+        assert_eq!(s.theme, "nord");
+
+        // Invalid fallback
+        s.theme = "unsupported-theme".into();
+        s.dock = "unsupported-dock".into();
+        s.fix();
+        assert_eq!(s.theme, "dark");
+        assert_eq!(s.dock, "icons");
+    }
+
+    #[test]
     fn timer_phase_and_midnight_roll() {
         let mut t = TimerState::default();
         assert_eq!(t.phase_secs(), 1500);
@@ -349,5 +401,21 @@ mod tests {
         assert_eq!(d.items[0].text, "n1");
         assert!(d.items.windows(2).all(|w| w[0].at < w[1].at));
         assert_eq!((d.tone.as_str(), d.anim.as_str()), ("chime", "glow"));
+    }
+
+    #[test]
+    fn screen_data_prunes_older_than_60_days() {
+        let mut sc = ScreenData::default();
+        for i in 1..=75 {
+            let day = format!("2026-01-{:02}", i);
+            sc.days.entry(day).or_default().insert("app.exe".into(), 100);
+        }
+        assert_eq!(sc.days.len(), 75);
+        sc.prune();
+        assert_eq!(sc.days.len(), 60);
+        // Oldest 15 days were pruned
+        assert!(!sc.days.contains_key("2026-01-01"));
+        assert!(!sc.days.contains_key("2026-01-15"));
+        assert!(sc.days.contains_key("2026-01-16"));
     }
 }

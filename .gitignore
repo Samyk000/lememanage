@@ -6,4 +6,7 @@ src-tauri/gen/
 .DS_Store
 Thumbs.db
 .agents/
+skills/
+skills-lock.json
+
 

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { api, ago, dayLabel, gb, secs, week } from "./api";
 import type {
   ClipItem,
@@ -85,14 +86,48 @@ function AppIcon({ src, name, size = 17 }: { src: string | null; name: string; s
 
 export function HomeModule({ onOpen }: { onOpen: (m: ModuleId) => void }) {
   const sys = usePoll<SysStats>(api.sysStats, 2000);
-  const clips = usePoll<ClipItem[]>(api.clipList, 2000);
-  const notes = usePoll<Note[]>(api.notesList, 4000);
-  const screen = usePoll<ScreenSummary>(api.screenSummary, 8000);
+  const [clips, setClips] = useState<ClipItem[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [screen, setScreen] = useState<ScreenSummary | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let unClip: (() => void) | undefined;
+    let unScreen: (() => void) | undefined;
+
+    api.clipList().then(setClips).catch(() => {});
+    api.notesList().then(setNotes).catch(() => {});
+    api.screenSummary().then(setScreen).catch(() => {});
+
+    listen("clip-updated", () => {
+      api.clipList().then(setClips).catch(() => {});
+    })
+      .then((f) => {
+        if (!active) f();
+        else unClip = f;
+      })
+      .catch(() => {});
+
+    listen("screen-updated", () => {
+      api.screenSummary().then(setScreen).catch(() => {});
+    })
+      .then((f) => {
+        if (!active) f();
+        else unScreen = f;
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      unClip?.();
+      unScreen?.();
+    };
+  }, []);
 
   const memPct = sys && sys.mem_total ? (sys.mem_used / sys.mem_total) * 100 : 0;
   const diskPct = sys && sys.disk_total ? (sys.disk_used / sys.disk_total) * 100 : 0;
   const topApp = screen?.apps[0];
-  const wk = week(screen?.days ?? []);
+  const wk = useMemo(() => week(screen?.days ?? []), [screen?.days]);
   const maxDay = Math.max(1, ...wk);
   const lastNote = notes?.[0];
 
@@ -191,17 +226,30 @@ export function FocusModule() {
   const [custom, setCustom] = useState("");
 
   useEffect(() => {
-    let alive = true;
-    const run = () =>
-      api
-        .focusGet()
-        .then((v) => alive && setSt(v))
-        .catch(() => {});
-    run();
-    const id = window.setInterval(run, 1000);
+    let unTick: (() => void) | undefined;
+    let unUp: (() => void) | undefined;
+
+    api.focusGet().then(setSt).catch(() => {});
+
+    listen<FocusState>("focus-tick", (e) => {
+      setSt(e.payload);
+    })
+      .then((f) => (unTick = f))
+      .catch(() => {});
+
+    listen<FocusState | undefined>("focus-updated", (e) => {
+      if (e.payload) {
+        setSt(e.payload);
+      } else {
+        api.focusGet().then(setSt).catch(() => {});
+      }
+    })
+      .then((f) => (unUp = f))
+      .catch(() => {});
+
     return () => {
-      alive = false;
-      window.clearInterval(id);
+      unTick?.();
+      unUp?.();
     };
   }, []);
 
@@ -471,15 +519,21 @@ export function RemindersModule() {
 
 /* ---------------- System ---------------- */
 
+let globalCpuHistory: number[] = new Array(60).fill(0);
+let cpuHistoryInitialized = false;
+
 export function SystemModule() {
   const sys = usePoll<SysStats>(api.sysStats, 1000);
-  // Seeded flat so the chart has geometry before the second CPU sample lands,
-  // then filled with the first real reading: 59 zeros plus one sample draws a
-  // flat line with a spike at the right edge, which reads as a broken chart.
-  const [hist, setHist] = useState<number[]>(() => new Array(60).fill(0));
+  const [hist, setHist] = useState<number[]>(() => [...globalCpuHistory]);
+
   useEffect(() => {
     if (!sys) return;
-    setHist((h) => (h.every((v) => v === 0) ? new Array(60).fill(sys.cpu) : [...h.slice(-59), sys.cpu]));
+    const next = !cpuHistoryInitialized
+      ? new Array(60).fill(sys.cpu)
+      : [...globalCpuHistory.slice(-59), sys.cpu];
+    cpuHistoryInitialized = true;
+    globalCpuHistory = next;
+    setHist(next);
   }, [sys]);
 
   const memPct = sys && sys.mem_total ? (sys.mem_used / sys.mem_total) * 100 : 0;
@@ -580,18 +634,23 @@ export function ClipboardModule() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    let alive = true;
-    const run = () =>
-      api
-        .clipList()
-        .then((v) => alive && setItems(v))
-        .catch(() => {});
-    run();
+    let active = true;
+    let un: (() => void) | undefined;
+    api.clipList().then(setItems).catch(() => {});
     inputRef.current?.focus();
-    const id = window.setInterval(run, 2000);
+
+    listen("clip-updated", () => {
+      api.clipList().then(setItems).catch(() => {});
+    })
+      .then((f) => {
+        if (!active) f();
+        else un = f;
+      })
+      .catch(() => {});
+
     return () => {
-      alive = false;
-      window.clearInterval(id);
+      active = false;
+      un?.();
     };
   }, []);
 
@@ -677,20 +736,23 @@ export function ClipboardModule() {
   }
 
   const needle = q.trim().toLowerCase();
-  const filtered = (needle ? items.filter((i) => i.text.toLowerCase().includes(needle)) : items)
-    .slice()
-    .sort((a, b) => b.ts - a.ts);
+  const { filtered, pinned, groups } = useMemo(() => {
+    const list = (needle ? items.filter((i) => i.text.toLowerCase().includes(needle)) : items)
+      .slice()
+      .sort((a, b) => b.ts - a.ts);
 
-  // Pinned gets its own strip; everything else is newest-first inside its day.
-  const pinned = filtered.filter((i) => i.pinned);
-  const groups: { key: string; label: string; items: ClipItem[] }[] = [];
-  for (const it of filtered) {
-    if (it.pinned) continue;
-    const key = dayKey(it.ts);
-    const last = groups[groups.length - 1];
-    if (last && last.key === key) last.items.push(it);
-    else groups.push({ key, label: dayLabel(it.ts), items: [it] });
-  }
+    // Pinned gets its own strip; everything else is newest-first inside its day.
+    const pin = list.filter((i) => i.pinned);
+    const grps: { key: string; label: string; items: ClipItem[] }[] = [];
+    for (const it of list) {
+      if (it.pinned) continue;
+      const key = dayKey(it.ts);
+      const last = grps[grps.length - 1];
+      if (last && last.key === key) last.items.push(it);
+      else grps.push({ key, label: dayLabel(it.ts), items: [it] });
+    }
+    return { filtered: list, pinned: pin, groups: grps };
+  }, [items, needle]);
 
   const card = (c: ClipItem) => {
     const kind = kindOf(c.text);
@@ -1067,7 +1129,9 @@ function NoteEditor({
           onBlur={() => void doSave()}
           onPaste={(e) => {
             e.preventDefault();
-            document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+            const text = e.clipboardData.getData("text/plain");
+            const safe = text.length > 50000 ? text.slice(0, 50000) : text;
+            document.execCommand("insertText", false, safe);
             queue();
           }}
           onKeyDown={(e) => {
@@ -1086,11 +1150,30 @@ function NoteEditor({
 /* ---------------- Screen time ---------------- */
 
 export function ScreenModule() {
-  const screen = usePoll<ScreenSummary>(api.screenSummary, 5000);
+  const [screen, setScreen] = useState<ScreenSummary | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let un: (() => void) | undefined;
+    api.screenSummary().then(setScreen).catch(() => {});
+    listen("screen-updated", () => {
+      api.screenSummary().then(setScreen).catch(() => {});
+    })
+      .then((f) => {
+        if (!active) f();
+        else un = f;
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      un?.();
+    };
+  }, []);
+
   const apps = screen?.apps ?? [];
   const maxApp = Math.max(1, ...apps.map((a) => a.secs));
   const total = Math.max(1, apps.reduce((n, a) => n + a.secs, 0));
-  const wk = week(screen?.days ?? []);
+  const wk = useMemo(() => week(screen?.days ?? []), [screen?.days]);
   const maxDay = Math.max(1, ...wk);
 
   return (

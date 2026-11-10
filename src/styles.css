@@ -1,21 +1,18 @@
 /* ============ tokens ============ */
-:root {
-  --bg: #0b0b0e;
-  --bg-rgb: 11, 11, 14;
-  --surface: #16161b;
-  --surface-2: #202027;
+:root,
+[data-theme="dark"] {
+  --bg: #141418;
+  --bg-rgb: 20, 20, 24;
+  --surface: #1e1e24;
+  --surface-2: #282832;
   --line: rgba(255, 255, 255, 0.08);
   --line-2: rgba(255, 255, 255, 0.16);
-  /* The resting notch's fill. It has no rim any more, so this is the only thing
-     separating the pill from an unknown wallpaper: lifted off the panel surface
-     on dark themes, a touch deeper than white on the light ones. */
   --notch-fill: #22222a;
-  --text: #f2f2f5;
+  --text: #f0f0f4;
   --dim: #a6a6b2;
   --faint: #777783;
-  --notch: #0b0b0e;
-  /* One knob per job, so a new theme only has to set these. */
-  --hover: rgba(255, 255, 255, 0.055);
+  --notch: #141418;
+  --hover: rgba(255, 255, 255, 0.06);
   --track: rgba(255, 255, 255, 0.1);
   --grid: rgba(255, 255, 255, 0.05);
   --ink-2: #e6e6ea;
@@ -23,8 +20,6 @@
   --pop: 0 1px 3px rgba(0, 0, 0, 0.35);
   --accent: #f0b429;
   --accent-rgb: 240, 180, 41;
-  /* The accent as text. Bright accents are unreadable on a pale notch, so the
-     light themes darken it; every other theme uses the accent unchanged. */
   --accent-text: var(--accent);
   --accent-ink: #191207;
   --accent-dim: rgba(var(--accent-rgb), 0.18);
@@ -34,53 +29,73 @@
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
-[data-theme="ink"] {
-  --bg: #0a0f18;
-  --bg-rgb: 10, 15, 24;
-  --surface: #131b2b;
-  --surface-2: #1c2637;
-  --notch-fill: #1c2637;
-  --text: #e9eef8;
-  --dim: #97a2b5;
-  --faint: #69748a;
-  --notch: #0a0f18;
-  --ink-2: #dfe6f2;
-  --ink-3: #4a5468;
+[data-theme="oled"] {
+  --bg: #000000;
+  --bg-rgb: 0, 0, 0;
+  --surface: #0a0a0d;
+  --surface-2: #141418;
+  --line: rgba(255, 255, 255, 0.12);
+  --line-2: rgba(255, 255, 255, 0.22);
+  --notch-fill: #141418;
+  --text: #ffffff;
+  --dim: #a8a8b6;
+  --faint: #6e6e7c;
+  --notch: #000000;
+  --hover: rgba(255, 255, 255, 0.08);
+  --track: rgba(255, 255, 255, 0.14);
+  --grid: rgba(255, 255, 255, 0.07);
+  --ink-2: #f0f0f5;
+  --ink-3: #525260;
+  --pop: 0 2px 6px rgba(0, 0, 0, 0.7);
 }
 
+[data-theme="nord"],
+[data-theme="ink"],
 [data-theme="slate"] {
-  --bg: #191b20;
-  --bg-rgb: 25, 27, 32;
-  --surface: #24272e;
-  --surface-2: #2f333b;
-  --notch-fill: #30343c;
-  --text: #f1f2f5;
-  --dim: #adb1bb;
-  --faint: #757b87;
-  --notch: #191b20;
-  --line: rgba(255, 255, 255, 0.09);
-  --ink-2: #e6e8ec;
-  --ink-3: #5c616b;
+  --bg: #141a24;
+  --bg-rgb: 20, 26, 36;
+  --surface: #1d2535;
+  --surface-2: #263146;
+  --line: rgba(160, 195, 235, 0.12);
+  --line-2: rgba(160, 195, 235, 0.22);
+  --notch-fill: #222d40;
+  --text: #e6edf7;
+  --dim: #9bb0cd;
+  --faint: #6e84a3;
+  --notch: #141a24;
+  --hover: rgba(160, 195, 235, 0.08);
+  --track: rgba(160, 195, 235, 0.14);
+  --grid: rgba(160, 195, 235, 0.06);
+  --ink-2: #dce7f5;
+  --ink-3: #4a5c77;
+  --pop: 0 2px 6px rgba(8, 12, 18, 0.5);
 }
 
+[data-theme="paper"],
 [data-theme="sand"] {
-  --bg: #17130f;
-  --bg-rgb: 23, 19, 15;
-  --surface: #221c15;
-  --surface-2: #2d251c;
-  --notch-fill: #2e261d;
-  --text: #f6efe6;
-  --dim: #b3a695;
-  --faint: #7b6e60;
-  --notch: #17130f;
-  --line: rgba(255, 240, 220, 0.085);
-  --ink-2: #efe6d9;
-  --ink-3: #5f5548;
+  --bg: #f5f0e6;
+  --bg-rgb: 245, 240, 230;
+  --surface: #e9e3d6;
+  --surface-2: #faf7f2;
+  --line: rgba(50, 40, 25, 0.1);
+  --line-2: rgba(50, 40, 25, 0.18);
+  --notch-fill: #ebe4d8;
+  --text: #26211a;
+  --dim: #6a6152;
+  --faint: #8e8473;
+  --notch: #f5f0e6;
+  --hover: rgba(60, 45, 20, 0.06);
+  --track: rgba(60, 45, 20, 0.1);
+  --grid: rgba(60, 45, 20, 0.05);
+  --ink-2: #28221b;
+  --ink-3: #c2b9ab;
+  --pop: 0 1px 3px rgba(60, 45, 20, 0.12);
+  --accent-text: color-mix(in srgb, var(--accent) 62%, #000);
 }
 
 [data-theme="light"] {
-  --bg: #fbfbfd;
-  --bg-rgb: 251, 251, 253;
+  --bg: #ffffff;
+  --bg-rgb: 255, 255, 255;
   --surface: #f2f2f6;
   --surface-2: #ffffff;
   --line: rgba(0, 0, 0, 0.085);
@@ -96,30 +111,6 @@
   --ink-2: #2a2a33;
   --ink-3: #b9b9c4;
   --pop: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="paper"] {
-  --bg: #f5f2ec;
-  --bg-rgb: 245, 242, 236;
-  --surface: #ebe7df;
-  --surface-2: #fbf9f5;
-  --line: rgba(40, 30, 15, 0.095);
-  --line-2: rgba(40, 30, 15, 0.18);
-  --notch-fill: #ece7dd;
-  --text: #221f1a;
-  --dim: #60594e;
-  --faint: #857c6d;
-  --notch: #f5f2ec;
-  --hover: rgba(60, 45, 20, 0.055);
-  --track: rgba(60, 45, 20, 0.1);
-  --grid: rgba(60, 45, 20, 0.05);
-  --ink-2: #2c2822;
-  --ink-3: #c2b9ab;
-  --pop: 0 1px 2px rgba(60, 45, 20, 0.12);
-}
-
-[data-theme="light"],
-[data-theme="paper"] {
   --accent-text: color-mix(in srgb, var(--accent) 62%, #000);
 }
 
@@ -168,6 +159,26 @@
 /* ============ base ============ */
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--faint);
 }
 
 html,body,#root {
@@ -178,7 +189,7 @@ html,body,#root {
 }
 
 body {
-  font-family: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui,    sans-serif;
+  font-family: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   user-select: none;
@@ -231,11 +242,6 @@ button:active {
 .shell[data-side="right"]:not([data-notch="orb"]) {
   --ns-w: 24px;
   --ns-h: 104px;
-}
-
-/* A theme/accent swap repaints every surface. Animating 30 of them at once   reads as a stutter, so transitions are off for the frame it lands on. */
-[data-swap] *,[data-swap] *::before,[data-swap] *::after {
-  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -950,6 +956,65 @@ button:active {
 [data-dock="minimal"] .panel.side-right .dock {
   padding: 3px;
   border: none;
+}
+
+/* Floating: detached elevated glass capsule with concentric geometry. */
+[data-dock="floating"] .dock {
+  justify-self: center;
+  align-self: center;
+  width: fit-content;
+  height: 38px;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+[data-dock="floating"] .dock-btn {
+  width: 38px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--dim);
+}
+
+[data-dock="floating"] .dock-btn:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+[data-dock="floating"] .dock-btn.active {
+  color: var(--accent);
+  background: transparent;
+}
+
+[data-dock="floating"] .dock-pill {
+  border-radius: 999px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.18);
+}
+
+[data-dock="floating"] .dock-dot {
+  display: none;
+}
+
+/* Side rail: vertical floating capsule */
+[data-dock="floating"] .panel.side-left .dock,
+[data-dock="floating"] .panel.side-right .dock {
+  width: 38px;
+  height: auto;
+  padding: 6px 3px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  flex-direction: column;
+}
+
+[data-dock="floating"] .panel.side-left .dock-btn,
+[data-dock="floating"] .panel.side-right .dock-btn {
+  width: 30px;
+  height: 34px;
 }
 
 .dock-dot {
@@ -1986,58 +2051,56 @@ button:active {
   color: #ffb0b0;
 }
 
+.btn-sm {
+  font-size: 9.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
 /* ============ settings ============ */
 .settings {
   height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
-/* Two bordered cards instead of two naked columns: the eye gets one boundary   per subject instead of hunting a hairline between rows. */
+/* Two bordered cards with exact height and clean containment */
 .set-card {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  padding: 8px 11px 6px;
+  height: 100%;
+  padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: 12px;
   background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .set-group {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--faint);
-  padding: 1px 0 6px;
+  padding-bottom: 5px;
   border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  height: 22px;
 }
 
 .set-group svg {
   color: var(--accent);
-  opacity: 0.75;
-}
-
-.set-sub {
-  padding: 7px 0 1px;
-  border-top: 1px solid var(--line);
-  font-size: 8.5px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.set-group + .set-sub {
-  padding-top: 3px;
-  border-top: none;
+  opacity: 0.85;
 }
 
 .set-row {
@@ -2045,45 +2108,50 @@ button:active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 29px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
   font-size: 11px;
   color: var(--text);
-  border-bottom: 1px solid var(--line);
 }
 
 .set-row:last-child {
   border-bottom: none;
 }
 
-/* Wide controls get their own line: a 6-chip picker and its label never fit   side by side in a half-panel, and squeezing them is what looked cramped. */
-.set-row.wide {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 6px 0;
-}
-
-.set-row > span:first-child {
-  flex: 0 0 auto;
-}
-
-.set-line > span:first-child {
-  flex: 0 0 auto;
-  font-size: 10.5px;
-  color: var(--dim);
-}
-
-.set-line {
+.set-label-col {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.set-label-col > span:first-child {
+  font-weight: 500;
+}
+
+.set-desc {
+  font-size: 8.5px;
+  color: var(--faint);
 }
 
 .set-val {
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--faint);
+  text-transform: capitalize;
+}
+
+.set-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
 kbd {
@@ -2094,6 +2162,7 @@ kbd {
   border-radius: 5px;
   padding: 2px 6px;
   background: var(--hover);
+  flex-shrink: 0;
 }
 
 .set-foot {
@@ -2102,7 +2171,10 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 8px;
+  height: 32px;
+  min-height: 32px;
+  flex-shrink: 0;
+  padding-top: 4px;
   border-top: 1px solid var(--line);
   font-size: 10px;
 }
@@ -2128,24 +2200,26 @@ kbd {
 }
 
 .seg {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 2px;
   padding: 2px;
-  background: var(--surface);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  flex: 0 0 auto;
+  border-radius: 7px;
+  flex-shrink: 0;
 }
 
 .seg-btn {
   border: none;
   background: transparent;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 500;
-  padding: 3px 7px;
-  border-radius: 6px;
-  transition: background 0.15s, color 0.15s, transform 0.12s var(--ease);
+  padding: 3px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
 }
 
 .seg-btn:hover {
@@ -2153,48 +2227,53 @@ kbd {
 }
 
 .seg-btn.on {
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
   box-shadow: var(--pop);
+  font-weight: 600;
 }
 
-/* theme chips show the theme itself, so adding one needs no new CSS */
+/* theme chips: 5 distinct, calibrated circular preview swatches */
 .tchips {
   display: flex;
-  gap: 6px;
-  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
 .tchip {
-  width: 22px;
-  height: 22px;
+  width: 19px;
+  height: 19px;
   padding: 0;
-  border-radius: 7px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   background: var(--t);
   color: var(--ti);
-  border: 1px solid var(--line-2);
-  transition: transform 0.15s var(--ease), box-shadow 0.18s var(--ease);
+  border: 1.5px solid var(--line-2);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), box-shadow 0.12s;
 }
 
 .tchip:hover {
-  transform: translateY(-1px);
+  transform: scale(1.15);
 }
 
 .tchip.on {
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1.5px var(--bg), 0 0 0 3px var(--accent);
 }
 
 .swatches {
   display: flex;
-  gap: 6px;
-  flex: 0 0 auto;
+  align-items: center;
+  gap: 4.5px;
+  flex-shrink: 0;
 }
 
 .swatch {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   padding: 0;
   border-radius: 50%;
   border: none;
@@ -2202,20 +2281,20 @@ kbd {
   place-items: center;
   background: var(--sw);
   color: #14141a;
-  transition: box-shadow 0.18s var(--ease), transform 0.15s var(--ease);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), box-shadow 0.12s;
 }
 
-/* A button's default padding shrinks the grid box and drags the tick off centre. */
 .swatch svg {
   display: block;
 }
 
 .swatch:hover {
-  transform: scale(1.14);
+  transform: scale(1.2);
 }
 
 .swatch.on {
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--sw);
+  box-shadow: 0 0 0 1.5px var(--bg), 0 0 0 3px var(--sw);
 }
 
 /* Notch picker: each tile is a live miniature of the skin above its name, so
@@ -2225,6 +2304,7 @@ kbd {
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   padding: 1px 0 3px;
+  width: 100%;
 }
 
 .nchip {
@@ -2262,6 +2342,7 @@ kbd {
 .nchip.on {
   border-color: var(--accent);
   background: var(--accent-dim);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.15);
 }
 
 .nprev {

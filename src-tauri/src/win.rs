@@ -30,7 +30,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
 use windows::Win32::UI::WindowsAndMessaging::{
     DestroyIcon, DrawIconEx, GetForegroundWindow, GetWindowLongPtrW, GetWindowThreadProcessId,
-    SetWindowLongPtrW, DI_NORMAL, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+    SetWindowLongPtrW, SetWindowPos, DI_NORMAL, GWL_EXSTYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_EX_NOACTIVATE,
 };
 
 const CF_UNICODETEXT: u32 = 13;
@@ -193,6 +194,15 @@ pub fn set_no_activate(hwnd: isize, on: bool) {
         };
         if next != ex {
             SetWindowLongPtrW(h, GWL_EXSTYLE, next);
+            let _ = SetWindowPos(
+                h,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
         }
     }
 }

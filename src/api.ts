@@ -34,7 +34,7 @@ export type RingAnim = "glow" | "pulse" | "ripple";
 export type Reminder = { id: string; text: string; at: number; done: boolean };
 export type ReminderData = { items: Reminder[]; tone: Tone; anim: RingAnim };
 
-export type Theme = "dark" | "ink" | "slate" | "sand" | "light" | "paper";
+export type Theme = "oled" | "dark" | "nord" | "paper" | "light";
 export type Accent =
   | "amber"
   | "blue"
@@ -45,7 +45,7 @@ export type Accent =
   | "cyan"
   | "lime";
 export type NotchStyle = "dot" | "orb" | "bar" | "time";
-export type DockStyle = "icons" | "labels" | "minimal";
+export type DockStyle = "icons" | "labels" | "minimal" | "floating";
 /** Which screen edge the notch hangs from. */
 export type Side = "top" | "bottom" | "left" | "right";
 export type Placement = { side: Side; flush: boolean };
@@ -61,6 +61,8 @@ export type Settings = {
   glass: boolean;
   notch: NotchStyle;
   dock: DockStyle;
+  hover_open: boolean;
+  sound: boolean;
 };
 
 export const api = {

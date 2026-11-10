@@ -29,12 +29,11 @@ import type { ModuleId } from "./modules";
 import { Icon } from "./ui";
 
 const THEMES: { id: Theme; label: string; bg: string; ink: string }[] = [
-  { id: "dark", label: "Dark", bg: "#0b0b0e", ink: "#f4f4f6" },
-  { id: "ink", label: "Ink", bg: "#0a0f18", ink: "#e9eef8" },
-  { id: "slate", label: "Slate", bg: "#191b20", ink: "#f1f2f5" },
-  { id: "sand", label: "Sand", bg: "#17130f", ink: "#f6efe6" },
-  { id: "light", label: "Light", bg: "#fbfbfd", ink: "#17171c" },
-  { id: "paper", label: "Paper", bg: "#f5f2ec", ink: "#221f1a" },
+  { id: "oled", label: "OLED", bg: "#000000", ink: "#ffffff" },
+  { id: "dark", label: "Dark", bg: "#141418", ink: "#f0f0f4" },
+  { id: "nord", label: "Nord", bg: "#1d2535", ink: "#8cb4ff" },
+  { id: "paper", label: "Paper", bg: "#f5f0e6", ink: "#26211a" },
+  { id: "light", label: "Light", bg: "#ffffff", ink: "#17171c" },
 ];
 
 const ACCENTS: { id: Accent; label: string; hex: string }[] = [
@@ -59,6 +58,7 @@ const DOCKS: { id: DockStyle; label: string }[] = [
   { id: "icons", label: "Icons" },
   { id: "labels", label: "Labels" },
   { id: "minimal", label: "Segmented" },
+  { id: "floating", label: "Floating" },
 ];
 
 /** How long a drop stays put before a stray mouse-leave can tuck it away. */
@@ -103,6 +103,8 @@ export default function App() {
   const quietUntil = useRef(0);
   const dockRef = useRef<HTMLElement>(null);
   const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const soundRef = useRef(st?.sound);
+  soundRef.current = st?.sound;
 
   const notch = st?.notch ?? "dot";
   // A running session owns the resting notch: it is the one thing you want to
@@ -112,6 +114,7 @@ export default function App() {
   useEffect(() => {
     api.settingsGet().then(setSt).catch(() => {});
     api.dockSide().then(setPlace).catch(() => {});
+    api.focusGet().then(setFocus).catch(() => {});
   }, []);
 
   // Audio has to be unlocked by a gesture the first time; after that the context
@@ -126,19 +129,13 @@ export default function App() {
     };
   }, []);
 
-  // Theme/accent/dock live on <html> so plain CSS variables do the work.
-  // Layout effect, not a plain one: the dock marker measures button geometry in
-  // its own layout effect and must see the new `data-dock` sizes, and painting
-  // one frame of transitions before the swap guard lands looks like a stutter.
+  // Theme/accent/dock live on <html> so plain CSS variables do the work instantly.
   useLayoutEffect(() => {
     const r = document.documentElement;
-    r.dataset.swap = "";
     r.dataset.theme = st?.theme ?? "dark";
     r.dataset.accent = st?.accent ?? "amber";
     r.dataset.dock = st?.dock ?? "icons";
     r.dataset.glass = st?.glass ? "on" : "off";
-    const t = window.setTimeout(() => delete r.dataset.swap, 120);
-    return () => window.clearTimeout(t);
   }, [st?.theme, st?.accent, st?.dock, st?.glass]);
 
   useEffect(() => {
@@ -152,25 +149,6 @@ export default function App() {
     const id = window.setInterval(tick, 10000);
     return () => window.clearInterval(id);
   }, []);
-
-  // Only while collapsed: the Focus module polls the same command when the panel
-  // is open, and the resting notch is where a running countdown belongs.
-  useEffect(() => {
-    if (open) return;
-    let alive = true;
-    const tick = () => {
-      api
-        .focusGet()
-        .then((s) => alive && setFocus(s))
-        .catch(() => {});
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, [open]);
 
   // Grow the window first: the panel mounts into a window that already fits it,
   // so the entrance animation never plays inside a 104×24 viewport.
@@ -263,6 +241,8 @@ export default function App() {
   // mousemove: landing on the notch while the window is still shrinking can
   // swallow the mouseenter, and any movement afterwards should recover it.
   const hoverStart = () => {
+    // If hover expansion is turned off in settings, only clicking the notch opens it.
+    if (st?.hover_open === false) return;
     // A held drag owns the mouse until it settles: the OS move loop keeps
     // delivering mousemove, and opening the panel mid-drag is the one thing that
     // must never happen.
@@ -278,6 +258,7 @@ export default function App() {
 
   // Rust already resized the window, so mirror its decision instead of asking again.
   useEffect(() => {
+    let active = true;
     let un: (() => void) | undefined;
     listen<{ expanded: boolean; side: Placement["side"]; flush: boolean }>(
       "expanded-changed",
@@ -293,37 +274,73 @@ export default function App() {
         }
       }
     )
-      .then((f) => (un = f))
+      .then((f) => {
+        if (!active) f();
+        else un = f;
+      })
       .catch(() => {});
-    return () => un?.();
+    return () => {
+      active = false;
+      un?.();
+    };
   }, [fold]);
 
-  // Rust ends a phase on its own tick, so the notch hears about it immediately
-  // instead of waiting for the next poll with a stale countdown.
+  // Rust ticks each second while running and emits focus-updated on phase end/changes,
+  // so the notch stays reactive without any wasteful idle setInterval polling.
   useEffect(() => {
-    let un: (() => void) | undefined;
-    listen("focus-updated", () => {
-      api
-        .focusGet()
-        .then(setFocus)
-        .catch(() => {});
+    let active = true;
+    let unTick: (() => void) | undefined;
+    let unUp: (() => void) | undefined;
+
+    listen<FocusState>("focus-tick", (e) => {
+      setFocus(e.payload);
     })
-      .then((f) => (un = f))
+      .then((f) => {
+        if (!active) f();
+        else unTick = f;
+      })
       .catch(() => {});
-    return () => un?.();
+
+    listen<FocusState | undefined>("focus-updated", (e) => {
+      if (e.payload) {
+        setFocus(e.payload);
+      } else {
+        api.focusGet().then(setFocus).catch(() => {});
+      }
+    })
+      .then((f) => {
+        if (!active) f();
+        else unUp = f;
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      unTick?.();
+      unUp?.();
+    };
   }, []);
 
   // A reminder rings on the resting notch and in the panel header, so it is
   // visible whichever state the window is in.
   useEffect(() => {
+    let active = true;
     let un: (() => void) | undefined;
     listen<{ texts: string[]; tone: Tone; anim: RingAnim }>("reminder-due", (e) => {
-      playTone(e.payload.tone);
+      if (soundRef.current !== false) {
+        playTone(e.payload.tone);
+      }
       ringNotch(e.payload.anim);
     })
-      .then((f) => (un = f))
+      .then((f) => {
+        if (!active) f();
+        else un = f;
+      })
       .catch(() => {});
-    return () => un?.();
+    return () => {
+      active = false;
+      un?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -403,11 +420,24 @@ export default function App() {
     void dragWindow();
   };
 
+  const saveTimer = useRef<number | null>(null);
   const patch = (p: Partial<Settings>) => {
     if (!st) return;
     const next = { ...st, ...p };
     setSt(next);
-    void api.settingsSet(next);
+    // Instant 0ms visual feedback: update <html> data attributes synchronously
+    const doc = document.documentElement;
+    if (p.theme) doc.dataset.theme = p.theme;
+    if (p.accent) doc.dataset.accent = p.accent;
+    if (p.dock) doc.dataset.dock = p.dock;
+    if (p.glass !== undefined) doc.dataset.glass = p.glass ? "on" : "off";
+
+    // Debounce the disk write by 200ms so rapid clicking never lags or blocks
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      saveTimer.current = null;
+      void api.settingsSet(next);
+    }, 200);
   };
 
   // The sliding dock marker follows whatever button is actually active, so it
@@ -583,7 +613,12 @@ function SettingsPanel({
   const toggleAuto = async () => {
     const next = await api.autostartSet(!auto);
     setAuto(next);
-    flash(next ? "Starts with Windows" : "Removed from startup");
+    flash(next ? "Starts on boot" : "Startup disabled");
+  };
+
+  const testChime = () => {
+    playTone("chime");
+    flash("Chime test playing");
   };
 
   return (
@@ -594,25 +629,27 @@ function SettingsPanel({
           Appearance
         </div>
 
-        <div className="nchips">
-          {NOTCHES.map((n) => (
-            <button
-              key={n.id}
-              className={`nchip${st?.notch === n.id ? " on" : ""}`}
-              onClick={() => patch({ notch: n.id })}
-              title={n.label}
-              aria-label={n.label}
-            >
-              <span className={`nprev nprev-${n.id}`}>
-                {n.id === "time" ? <b>9:41</b> : null}
-              </span>
-              <span className="nchip-label">{n.label}</span>
-            </button>
-          ))}
+        <div className="set-row">
+          <div className="set-label-col">
+            <span>Notch</span>
+            <span className="set-val">{NOTCHES.find((n) => n.id === st?.notch)?.label}</span>
+          </div>
+          <div className="seg">
+            {NOTCHES.map((n) => (
+              <button
+                key={n.id}
+                className={`seg-btn${st?.notch === n.id ? " on" : ""}`}
+                onClick={() => patch({ notch: n.id })}
+                title={n.label}
+              >
+                {n.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="set-row wide">
-          <div className="set-line">
+        <div className="set-row">
+          <div className="set-label-col">
             <span>Theme</span>
             <span className="set-val">{THEMES.find((t) => t.id === st?.theme)?.label}</span>
           </div>
@@ -626,14 +663,14 @@ function SettingsPanel({
                 title={t.label}
                 aria-label={t.label}
               >
-                {st?.theme === t.id && <Icon name="check" size={11} stroke={2.6} />}
+                {st?.theme === t.id && <Icon name="check" size={10} stroke={2.8} />}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="set-row wide">
-          <div className="set-line">
+        <div className="set-row">
+          <div className="set-label-col">
             <span>Accent</span>
             <span className="set-val">{ACCENTS.find((a) => a.id === st?.accent)?.label}</span>
           </div>
@@ -647,20 +684,24 @@ function SettingsPanel({
                 title={a.label}
                 aria-label={a.label}
               >
-                {st?.accent === a.id && <Icon name="check" size={13} stroke={2.6} />}
+                {st?.accent === a.id && <Icon name="check" size={10} stroke={2.8} />}
               </button>
             ))}
           </div>
         </div>
 
         <div className="set-row">
-          <span>Dock</span>
+          <div className="set-label-col">
+            <span>Dock</span>
+            <span className="set-val">{DOCKS.find((d) => d.id === st?.dock)?.label}</span>
+          </div>
           <div className="seg">
             {DOCKS.map((d) => (
               <button
                 key={d.id}
                 className={`seg-btn${st?.dock === d.id ? " on" : ""}`}
                 onClick={() => patch({ dock: d.id })}
+                title={d.label}
               >
                 {d.label}
               </button>
@@ -669,7 +710,10 @@ function SettingsPanel({
         </div>
 
         <div className="set-row">
-          <span>Frosted glass</span>
+          <div className="set-label-col">
+            <span>Frosted glass</span>
+            <span className="set-desc">Translucent blur</span>
+          </div>
           <button
             className={`switch${st?.glass ? " on" : ""}`}
             onClick={() => patch({ glass: !st?.glass })}
@@ -683,13 +727,51 @@ function SettingsPanel({
       <section className="set-card">
         <div className="set-group">
           <Icon name="system" size={11} />
-          System
+          Preferences & System
         </div>
 
-        <div className="set-sub">Startup</div>
+        <div className="set-row">
+          <div className="set-label-col">
+            <span>Hover expand</span>
+            <span className="set-desc">Or click to open</span>
+          </div>
+          <button
+            className={`switch${st?.hover_open !== false ? " on" : ""}`}
+            onClick={() => patch({ hover_open: st?.hover_open === false })}
+            aria-pressed={st?.hover_open !== false}
+          >
+            <span />
+          </button>
+        </div>
 
         <div className="set-row">
-          <span>Start with Windows</span>
+          <div className="set-label-col">
+            <span>Audio chimes</span>
+            <span className="set-desc">Alerts & timers</span>
+          </div>
+          <div className="set-controls">
+            <button
+              className="btn-ghost btn-sm"
+              onClick={testChime}
+              title="Test chime preview"
+            >
+              Test
+            </button>
+            <button
+              className={`switch${st?.sound !== false ? " on" : ""}`}
+              onClick={() => patch({ sound: st?.sound === false })}
+              aria-pressed={st?.sound !== false}
+            >
+              <span />
+            </button>
+          </div>
+        </div>
+
+        <div className="set-row">
+          <div className="set-label-col">
+            <span>Launch at boot</span>
+            <span className="set-desc">Windows startup</span>
+          </div>
           <button
             className={`switch${auto ? " on" : ""}`}
             onClick={() => void toggleAuto()}
@@ -704,36 +786,34 @@ function SettingsPanel({
           <kbd>{st?.hotkey ?? "Ctrl+Shift+Space"}</kbd>
         </div>
 
-        <div className="set-sub">Maintenance</div>
-
         <div className="set-row">
-          <span>Position</span>
-          <button
-            className="btn-ghost"
-            onClick={async () => {
-              await onReset();
-              flash("Back to top centre");
-            }}
-          >
-            Reset
-          </button>
-        </div>
-
-        <div className="set-row">
-          <span>Clipboard history</span>
-          <button
-            className="btn-ghost"
-            onClick={async () => {
-              await api.clipClear();
-              flash("Unpinned items cleared");
-            }}
-          >
-            Clear
-          </button>
+          <span>Reset & Data</span>
+          <div className="set-controls">
+            <button
+              className="btn-ghost btn-sm"
+              onClick={async () => {
+                await onReset();
+                flash("Reset to top centre");
+              }}
+              title="Re-center notch to top"
+            >
+              Reset
+            </button>
+            <button
+              className="btn-ghost btn-sm"
+              onClick={async () => {
+                await api.clipClear();
+                flash("Clips cleared");
+              }}
+              title="Clear unpinned clipboard history"
+            >
+              Clear
+            </button>
+          </div>
         </div>
 
         <div className="set-foot">
-          <span className="faint clamp1">{note || "Drag the top bar to move"}</span>
+          <span className="faint clamp1">{note || "Drag header to move"}</span>
           <div className="set-actions">
             <button className="btn-ghost set-done" onClick={onDone}>
               Done

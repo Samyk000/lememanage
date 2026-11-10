@@ -376,7 +376,7 @@ fn focus_get(state: State<AppState>) -> store::TimerState {
 }
 
 #[tauri::command(async)]
-fn focus_toggle(state: State<AppState>) -> store::TimerState {
+fn focus_toggle(app: tauri::AppHandle, state: State<AppState>) -> store::TimerState {
     let mut t = state.timer.lock();
     t.roll();
     // A phase that already ran out restarts instead of stopping on the same tick.
@@ -385,22 +385,33 @@ fn focus_toggle(state: State<AppState>) -> store::TimerState {
     }
     t.running = !t.running;
     store::save("timers.json", &*t);
-    t.clone()
+    let snap = t.clone();
+    drop(t);
+    let _ = app.emit("focus-updated", &snap);
+    snap
 }
 
 #[tauri::command(async)]
-fn focus_reset(state: State<AppState>) -> store::TimerState {
+fn focus_reset(app: tauri::AppHandle, state: State<AppState>) -> store::TimerState {
     let mut t = state.timer.lock();
     t.roll();
     t.running = false;
     t.is_work = true;
     t.remaining = t.work_secs;
     store::save("timers.json", &*t);
-    t.clone()
+    let snap = t.clone();
+    drop(t);
+    let _ = app.emit("focus-updated", &snap);
+    snap
 }
 
 #[tauri::command(async)]
-fn focus_config(state: State<AppState>, work_mins: u32, break_mins: u32) -> store::TimerState {
+fn focus_config(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    work_mins: u32,
+    break_mins: u32,
+) -> store::TimerState {
     let mut t = state.timer.lock();
     t.roll();
     t.work_secs = work_mins.clamp(1, 180) * 60;
@@ -410,7 +421,10 @@ fn focus_config(state: State<AppState>, work_mins: u32, break_mins: u32) -> stor
     t.is_work = true;
     t.remaining = t.work_secs;
     store::save("timers.json", &*t);
-    t.clone()
+    let snap = t.clone();
+    drop(t);
+    let _ = app.emit("focus-updated", &snap);
+    snap
 }
 
 #[tauri::command]
@@ -489,6 +503,7 @@ fn settings_set(app: tauri::AppHandle, state: State<AppState>, mut settings: sto
 /// Single place that moves/resizes the window, so hover, Escape and the hotkey
 /// can never disagree about the current state.
 fn apply_expanded(app: &tauri::AppHandle, expanded: bool) {
+    eprintln!("[lememanage] apply_expanded: expanded={}", expanded);
     let Some(window) = app.get_webview_window("notch") else {
         return;
     };
@@ -706,6 +721,7 @@ fn quit(app: tauri::AppHandle) {
 
 fn main() {
     if win::already_running() {
+        eprintln!("[lememanage] another instance is already running; exiting immediately.");
         return;
     }
 
@@ -724,7 +740,11 @@ fn main() {
         .manage(AppState {
             clip: Mutex::new(store::load("clipboard.json")),
             notes: Mutex::new(store::load("notes.json")),
-            screen: Mutex::new(store::load("screentime.json")),
+            screen: Mutex::new({
+                let mut sc: store::ScreenData = store::load("screentime.json");
+                sc.prune();
+                sc
+            }),
             timer: Mutex::new({
                 let mut t: store::TimerState = store::load("timers.json");
                 t.fix();
@@ -790,11 +810,16 @@ fn main() {
                     let s = st.settings.lock();
                     (s.side.clone(), s.notch.clone())
                 };
+                eprintln!("[lememanage] setup layout: anchor={:?}, side={}, notch={}", anchor, side, notch);
                 layout(&window, false, anchor, &side, &notch, timer_resting(&st, false));
                 // Seed the CPU baseline so the first poll reports a real figure, not 0%.
                 win::cpu_sample(&mut st.cpu_prev.lock());
             }
-            let _ = window.show();
+            let show_res = window.show();
+            eprintln!("[lememanage] window.show(): {:?}", show_res);
+            eprintln!("[lememanage] window.is_visible(): {:?}", window.is_visible());
+            eprintln!("[lememanage] window.outer_position(): {:?}", window.outer_position());
+            eprintln!("[lememanage] window.outer_size(): {:?}", window.outer_size());
             if let Ok(h) = window.hwnd() {
                 win::set_no_activate(h.0 as isize, true);
             }
@@ -874,7 +899,10 @@ fn main() {
                     }
                     tick += 1;
                     if tick % 15 == 0 {
-                        store::save("screentime.json", &*st.screen.lock());
+                        let mut sc = st.screen.lock();
+                        sc.prune();
+                        store::save("screentime.json", &*sc);
+                        drop(sc);
                         let _ = h2.emit("screen-updated", ());
                     }
                 }
@@ -891,6 +919,7 @@ fn main() {
                     let mut t = st.timer.lock();
                     t.roll();
                     let mut ended = false;
+                    let mut tick_state = None;
                     if t.running {
                         t.remaining = t.remaining.saturating_sub(1);
                         if t.remaining == 0 {
@@ -903,12 +932,17 @@ fn main() {
                             t.running = false;
                             ended = true;
                         }
+                        tick_state = Some(t.clone());
                     }
                     tick += 1;
                     if ended || (t.running && tick % 10 == 0) {
                         store::save("timers.json", &*t);
                     }
                     drop(t);
+
+                    if let Some(s) = tick_state {
+                        let _ = h3.emit("focus-tick", s);
+                    }
                     // The pill was only ever wide enough for the countdown, so
                     // the orb gets its circle back the moment the session stops.
                     if ended {
@@ -965,16 +999,27 @@ fn main() {
                     .tooltip("LemeManage")
                     .menu(&menu)
                     .show_menu_on_left_click(false)
+                    .on_tray_icon_event(|tray, event| {
+                        if let tauri::tray::TrayIconEvent::Click {
+                            button: tauri::tray::MouseButton::Left,
+                            button_state: tauri::tray::MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            let app = tray.app_handle();
+                            let next = !app.state::<AppState>().expanded.load(Ordering::Relaxed);
+                            apply_expanded(app, next);
+                            emit_expanded(app, next);
+                        }
+                    })
                     .on_menu_event(|app, ev| match ev.id().as_ref() {
                         "show" => {
-                            if let Some(w) = app.get_webview_window("notch") {
-                                let _ = w.show();
-                            }
+                            apply_expanded(app, true);
+                            emit_expanded(app, true);
                         }
                         "hide" => {
-                            if let Some(w) = app.get_webview_window("notch") {
-                                let _ = w.hide();
-                            }
+                            apply_expanded(app, false);
+                            emit_expanded(app, false);
                         }
                         "quit" => app.exit(0),
                         _ => {}
